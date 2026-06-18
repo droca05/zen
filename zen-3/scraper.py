@@ -70,10 +70,16 @@ def scrape_live(url: str, max_items: int = 100) -> list[dict]:
             continue
         category = grab("category").lower()
         service = next((s for s in SERVICE_TYPES if s in category), "food")
+        # capture the source link if the card has one
+        link_el = card.select_one("a")
+        link = link_el.get("href", "") if link_el else ""
+        if link and link.startswith("/"):
+            from urllib.parse import urljoin
+            link = urljoin(url, link)
         records.append(_hsds_record(
             rid=f"R{i:04d}", name=name, service=service,
             address=grab("address"), hours=grab("hours") or "Call for hours",
-            phone=grab("phone"),
+            phone=grab("phone"), url=link,
         ))
         time.sleep(0.3)   # be polite
     return records
@@ -81,7 +87,7 @@ def scrape_live(url: str, max_items: int = 100) -> list[dict]:
 
 def _hsds_record(rid, name, service, address, hours, phone,
                  zone=None, capacity=None, max_income=0, min_hh=0,
-                 verified_days=0) -> dict:
+                 verified_days=0, url="") -> dict:
     """One Open Referral HSDS-shaped service record."""
     return {
         "resource_id": rid,
@@ -90,6 +96,7 @@ def _hsds_record(rid, name, service, address, hours, phone,
         "address": address,
         "phone": phone,
         "hours": hours,
+        "url": url,                      # source link (scraped or official page)
         # operational fields the MILP needs
         "zip_zone": zone if zone is not None else random.randint(0, 5),
         "capacity": capacity if capacity is not None else random.randint(6, 50),
@@ -128,12 +135,14 @@ def scrape_seed() -> list[dict]:
     for service, names in SEED_NAMES.items():
         for name in names:
             zone = random.randint(0, 5)
+            slug = name.lower().replace(" ", "-").replace("'", "").replace("#", "").replace(".", "")
             records.append(_hsds_record(
                 rid=f"R{rid:04d}", name=name, service=service,
                 address=f"{random.randint(100, 9999)} {random.choice(STREETS)}",
                 hours=random.choice(["Mon-Fri 9-5", "Daily 8-8", "Mon-Sat 10-4",
                                      "Apply online", "Tue/Thu 9-1"]),
                 phone=f"(555) {random.randint(200,999)}-{random.randint(1000,9999)}",
+                url=f"https://findhelp.example.org/program/{slug}",
                 zone=zone,
                 capacity=random.randint(6, 45),
                 max_income=random.choice([0, 1500, 2000, 2500]),

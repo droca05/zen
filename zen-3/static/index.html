@@ -551,6 +551,7 @@ function renderPlan(){
         <div class="st-title">Your next steps</div>
         <ol>${p.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
         <div class="bring"><b>Bring:</b> ${p.bring}</div>
+        ${p.url?`<a href="${p.url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:700;color:var(--zen-primary)">Open official page →</a>`:''}
       </div>
       <div class="act"><button onclick="advance('${p.resource_id}')">${ic('check')} Mark as requested</button></div>
     </div>`).join('');
@@ -701,7 +702,12 @@ async function loadCaseworker(){
       <div class="cw-actions"><a href="tel:+10000000000">${ic('phone')} Call</a><button onclick="resolveCase('${c.id}')">${ic('check')} Resolve</button></div>
     </div>`).join('');
 }
-async function resolveCase(id){await post('/api/caseworker/resolve',{case_id:id});loadCaseworker();}
+async function resolveCase(id){
+  const btn=event&&event.target?event.target.closest('button'):null;
+  if(btn){btn.innerHTML=`${ic('check')} Resolved`;btn.style.background='var(--zen-primary)';btn.style.color='#fff';}
+  await post('/api/caseworker/resolve',{case_id:id});
+  setTimeout(loadCaseworker,450);
+}
 
 loadLocal();askGeo();
 </script>

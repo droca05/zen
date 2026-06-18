@@ -200,6 +200,7 @@ def api_match(req: MatchReq):
             "address": m.get("address", ""),
             "hours": m.get("hours", ""),
             "phone": m.get("phone", ""),
+            "url": m.get("url", ""),
             "distance_mi": a.distance,
             "confidence": a.confidence,
             "why_plain": pl["plain"],             # headline: plain language
@@ -491,7 +492,28 @@ def api_case_save(req: CaseSaveReq):
         "saved_at": datetime.now().isoformat(),
     }
     _save_cases(cases)
+    # If an email was given, this is where reminders would be sent.
+    if req.email:
+        _send_reminder_email(req.email, req.tracking)
     return {"saved": req.tracking}
+
+
+def _send_reminder_email(to_addr: str, tracking: str):
+    """
+    PREPARED FOR PRODUCTION (Diego): wire a real email provider here.
+    The MVP does NOT send mail — it logs intent, so the promise stays honest.
+
+    Example with SMTP / a provider like Resend or SendGrid:
+        import smtplib, ssl
+        # read creds from env: EMAIL_HOST, EMAIL_USER, EMAIL_PASS
+        # build the message: "Your Zen case {tracking} — here's your plan + 24h check-in"
+        # send, then return True/False
+
+    Until credentials are configured, we only record the intent.
+    """
+    print(f"[email-intent] would send reminder for {tracking} to {to_addr} "
+          f"(no provider configured — Diego wires this in production)")
+    return False
 
 
 @app.get("/api/case/{tracking}")
