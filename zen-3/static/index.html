@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zen — Find your calm. Find your way.</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --zen-deep:#0F3A3D; --zen-primary:#1B7A7E; --zen-soft:#5EA9AC;
+    --zen-mist:#D4E9E8; --zen-sand:#F3EFE7; --zen-cloud:#FBFAF7;
+    --zen-sun:#E8A04C; --zen-coral:#E0725C; --ink:#14342F; --muted:#6B7C79;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);
+    background:radial-gradient(circle at 12% 8%, rgba(94,169,172,.14), transparent 40%),
+      radial-gradient(circle at 88% 92%, rgba(232,160,76,.08), transparent 45%), var(--zen-cloud);
+    min-height:100vh;}
+  svg.ic{width:1em;height:1em;vertical-align:-.13em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .worldbar{max-width:520px;margin:0 auto;padding:14px 16px 0;}
+  .brand{display:flex;align-items:center;gap:9px;justify-content:center;}
+  .brand svg{width:30px;height:30px;}
+  .brand .name{font-family:'Fraunces',serif;font-size:26px;font-weight:500;letter-spacing:-1px;color:var(--zen-deep);}
+  .brand .name b{color:var(--zen-primary);font-weight:600;}
+  .mode-toggle{display:flex;gap:5px;background:var(--zen-mist);border-radius:14px;padding:5px;margin:12px 0 0;}
+  .mode{flex:1;padding:9px 4px;border:none;background:transparent;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:5px;}
+  .mode.on{background:#fff;color:var(--zen-deep);box-shadow:0 2px 8px rgba(15,58,61,.1);}
+  .mode svg{width:15px;height:15px;}
+
+  #person{max-width:520px;margin:0 auto;padding:14px 16px 96px;}
+  .card{background:#fff;border-radius:22px;padding:22px;box-shadow:0 10px 40px rgba(15,58,61,.08);border:1px solid rgba(27,122,126,.06);}
+  .tab-view{display:none;} .tab-view.active{display:block;animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  h2{font-family:'Fraunces',serif;font-size:23px;font-weight:500;margin-bottom:6px;line-height:1.25;}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:16px;}
+  .label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--zen-primary);margin:14px 0 8px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{padding:9px 14px;border-radius:999px;border:1.5px solid var(--zen-mist);background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px;}
+  .chip svg{width:15px;height:15px;color:var(--zen-primary);}
+  .chip:hover{border-color:var(--zen-soft);} .chip.sel{background:var(--zen-primary);color:#fff;border-color:var(--zen-primary);}
+  .chip.sel svg{color:#fff;}
+  .chip.amber.sel{background:var(--zen-sun);border-color:var(--zen-sun);}
+  textarea,input{width:100%;border:1.5px solid var(--zen-mist);border-radius:14px;padding:13px;font-family:inherit;font-size:15px;resize:none;margin-top:6px;}
+  textarea:focus,input:focus{outline:none;border-color:var(--zen-soft);}
+  .btn{display:block;width:100%;padding:15px;border-radius:14px;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;transition:.2s;}
+  .btn.primary{background:var(--zen-primary);color:#fff;} .btn.primary:hover{background:var(--zen-deep);}
+  .btn.ghost{background:var(--zen-sand);color:var(--zen-primary);}
+  .btn.sm{padding:10px 14px;font-size:13px;width:auto;display:inline-block;margin:0;}
+  .geo{background:var(--zen-mist);border-radius:12px;padding:11px 14px;font-size:12.5px;color:var(--zen-deep);margin-bottom:14px;display:flex;gap:8px;align-items:center;}
+  .geo svg{width:16px;height:16px;flex-shrink:0;}
+  .consent{background:var(--zen-mist);border-radius:14px;padding:14px;margin-bottom:14px;}
+  .consent .ttl{font-weight:800;font-size:13.5px;color:var(--zen-deep);display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+  .consent ul{margin:0 0 10px 18px;font-size:12.5px;line-height:1.55;}
+  .consent-check{display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;color:var(--zen-deep);cursor:pointer;}
+  .consent-check input{width:auto;margin:2px 0 0;}
+  .mic-wrap{text-align:center;padding:6px 0;}
+  .mic{width:74px;height:74px;border-radius:50%;background:var(--zen-primary);color:#fff;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;}
+  .mic svg{width:30px;height:30px;}
+  .mic.rec{background:var(--zen-coral);animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(224,114,92,.4);}70%{box-shadow:0 0 0 16px rgba(224,114,92,0);}100%{box-shadow:0 0 0 0 rgba(224,114,92,0);}}
+  .mic-hint{font-size:12px;color:var(--muted);margin-top:8px;}
+  .conf{margin:14px 0;}
+  .conf .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;}
+  .conf .track{height:8px;background:var(--zen-mist);border-radius:4px;overflow:hidden;}
+  .conf .track>i{display:block;height:100%;border-radius:4px;background:var(--zen-primary);transition:width .6s;}
+  .quote{background:var(--zen-sand);border-radius:14px;padding:13px;font-size:14px;font-style:italic;margin-bottom:10px;}
+  .tag-mini{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin:3px 3px 0 0;background:var(--zen-mist);color:var(--zen-deep);}
+
+  /* plan card */
+  .res{border:1px solid var(--zen-mist);border-radius:16px;margin-bottom:12px;overflow:hidden;}
+  .res .top{display:flex;gap:12px;padding:14px 14px 10px;align-items:flex-start;}
+  .res .rank{min-width:28px;height:28px;border-radius:8px;background:var(--zen-primary);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .res h4{font-size:15px;display:flex;align-items:center;gap:7px;}
+  .res h4 .qhelp{margin-left:auto;width:20px;height:20px;border-radius:50%;background:var(--zen-mist);color:var(--zen-primary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .res h4 .qhelp svg{width:13px;height:13px;}
+  .res .meta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px;}
+  .res .meta span{display:inline-flex;align-items:center;gap:4px;}
+  .res .meta svg{width:13px;height:13px;}
+  .start-badge{display:inline-block;background:var(--zen-sun);color:#fff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:999px;margin-bottom:5px;}
+  .why{display:none;font-size:13px;color:var(--ink);background:var(--zen-mist);margin:0 14px 10px;padding:10px 12px;border-radius:10px;line-height:1.5;}
+  .why.open{display:block;}
+  .why .rd{font-size:11px;color:var(--zen-primary);margin-top:7px;}
+  .why .rd b{font-weight:800;}
+  .why details{margin-top:6px;} .why summary{font-size:11px;color:var(--muted);cursor:pointer;}
+  .why .legal{font-size:11px;color:var(--muted);margin-top:5px;}
+  .steps{background:var(--zen-sand);padding:11px 14px;}
+  .steps .st-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--zen-deep);margin-bottom:6px;}
+  .steps ol{margin:0 0 8px 16px;font-size:13px;line-height:1.55;}
+  .steps .bring{font-size:12px;color:var(--muted);} .steps .bring b{color:var(--ink);}
+  .res .act{display:flex;gap:8px;padding:11px 14px 14px;}
+  .act button{flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--zen-primary);background:#fff;color:var(--zen-primary);font-weight:700;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+  .act button svg{width:14px;height:14px;}
+  .stale{font-size:11px;color:var(--zen-coral);font-weight:700;padding:0 14px 10px;display:flex;align-items:center;gap:5px;}
+  .stale svg{width:13px;height:13px;}
+  .route{border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:13px;line-height:1.45;}
+  .route .rt{font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+
+  /* save / contact block */
+  .savebox{background:var(--zen-sand);border-radius:14px;padding:14px;margin-top:14px;}
+  .savebox .opt{font-size:10px;font-weight:800;color:var(--zen-sun);letter-spacing:.5px;}
+
+  /* tracker */
+  .recover{background:var(--zen-mist);border-radius:12px;padding:12px;margin-bottom:14px;}
+  .recover .rl{font-size:12px;font-weight:700;color:var(--zen-deep);margin-bottom:6px;}
+  .recover-row{display:flex;gap:8px;}
+  .recover-row input{margin:0;}
+  .recover-row button{white-space:nowrap;}
+  .track-num{background:var(--zen-deep);color:#fff;border-radius:14px;padding:14px;text-align:center;margin-bottom:14px;}
+  .track-num .n{font-family:'Fraunces',serif;font-size:23px;letter-spacing:1px;}
+  .track-num small{opacity:.8;font-size:11px;text-transform:uppercase;letter-spacing:1px;}
+  .tk-item{border:1px solid var(--zen-mist);border-radius:16px;padding:14px;margin-bottom:12px;}
+  .tk-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .tk-head h4{font-size:14px;}
+  .tk-x{width:24px;height:24px;border-radius:50%;background:var(--zen-sand);color:var(--muted);border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+  .tk-x svg{width:13px;height:13px;}
+  .stepper{display:flex;align-items:flex-start;margin-bottom:8px;}
+  .stepper .ph{flex:1;text-align:center;position:relative;}
+  .stepper .dot{width:22px;height:22px;border-radius:50%;background:var(--zen-mist);color:var(--muted);font-size:11px;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-weight:800;border:2px solid var(--zen-mist);position:relative;z-index:2;}
+  .stepper .dot svg{width:12px;height:12px;}
+  .stepper .ph.done .dot{background:var(--zen-primary);color:#fff;border-color:var(--zen-primary);}
+  .stepper .ph.cur .dot{background:#fff;color:var(--zen-primary);border-color:var(--zen-primary);}
+  .stepper .ph small{font-size:9px;color:var(--muted);display:block;}
+  .stepper .ph.done small,.stepper .ph.cur small{color:var(--zen-deep);font-weight:700;}
+  .stepper .line{position:absolute;top:11px;right:50%;width:100%;height:2px;background:var(--zen-mist);z-index:1;}
+  .stepper .ph.done .line{background:var(--zen-primary);}
+  .tk-follow{font-size:12px;background:var(--zen-sand);border-radius:10px;padding:9px 11px;margin-top:8px;}
+  #map,#ongmap{height:340px;border-radius:16px;margin-top:6px;z-index:1;}
+  .legend{display:flex;gap:14px;font-size:12px;margin-top:10px;flex-wrap:wrap;}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+  .ok{background:#E8F5F0;color:var(--zen-deep);border-radius:10px;padding:10px;font-size:12px;text-align:center;font-weight:600;margin-top:10px;}
+  .escalate{background:#FDF0EC;border:1.5px solid var(--zen-coral);border-radius:14px;padding:15px;margin-top:10px;}
+  .spinner{text-align:center;color:var(--muted);font-size:13px;padding:18px;}
+  .note{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;}
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--zen-mist);display:flex;max-width:520px;margin:0 auto;box-shadow:0 -4px 20px rgba(15,58,61,.06);z-index:50;}
+  .tabbar button{flex:1;border:none;background:none;padding:9px 0 11px;font-family:inherit;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;}
+  .tabbar button .ic2{display:block;margin:0 auto 3px;width:21px;height:21px;}
+  .tabbar button.on{color:var(--zen-primary);}
+  .chat-fab{position:fixed;bottom:76px;right:calc(50% - 250px);width:52px;height:52px;border-radius:50%;background:var(--zen-sun);color:#fff;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(232,160,76,.45);z-index:60;display:flex;align-items:center;justify-content:center;}
+  .chat-fab svg{width:24px;height:24px;}
+  @media(max-width:560px){.chat-fab{right:18px;}}
+  .chat-panel{position:fixed;bottom:138px;right:calc(50% - 250px);width:320px;max-width:88vw;background:#fff;border-radius:18px;box-shadow:0 12px 48px rgba(15,58,61,.25);z-index:61;display:none;overflow:hidden;}
+  @media(max-width:560px){.chat-panel{right:18px;}}
+  .chat-panel.open{display:block;}
+  .chat-head{background:var(--zen-deep);color:#fff;padding:12px 14px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;}
+  .chat-head .x{cursor:pointer;display:inline-flex;} .chat-head .x svg{width:16px;height:16px;}
+  .chat-body{padding:12px;height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+  .msg{padding:9px 12px;border-radius:12px;font-size:13px;max-width:86%;line-height:1.45;}
+  .msg.bot{background:var(--zen-mist);color:var(--ink);align-self:flex-start;}
+  .msg.me{background:var(--zen-primary);color:#fff;align-self:flex-end;}
+  .chat-sugg{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;}
+  .chat-sugg button{font-size:11px;padding:6px 10px;border-radius:999px;border:1px solid var(--zen-mist);background:#fff;color:var(--zen-primary);cursor:pointer;}
+  .chat-input{display:flex;border-top:1px solid var(--zen-mist);}
+  .chat-input input{border:none;border-radius:0;margin:0;}
+  .chat-input button{border:none;background:var(--zen-primary);color:#fff;padding:0 14px;font-weight:700;cursor:pointer;}
+
+  /* ONG + caseworker (landscape) */
+  #ong,#cw{display:none;margin:0 auto;padding:14px 16px 40px;}
+  #ong{max-width:1080px;} #cw{max-width:860px;}
+  #ong.active,#cw.active{display:block;}
+  .ong-badge{display:inline-flex;align-items:center;gap:6px;background:var(--zen-deep);color:#fff;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;border-radius:999px;margin-bottom:10px;}
+  .ong-badge svg{width:13px;height:13px;}
+  .ong-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .ong-card{background:#fff;border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(15,58,61,.07);}
+  .ong-wide{grid-column:1 / -1;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px;}
+  .kpi{background:var(--zen-sand);border-radius:12px;padding:13px;text-align:center;}
+  .kpi b{font-size:23px;font-family:'Fraunces',serif;color:var(--zen-deep);display:block;}
+  .kpi small{font-size:11px;color:var(--muted);}
+  .bar{display:flex;align-items:center;gap:8px;font-size:12px;margin:5px 0;}
+  .bar .nm{width:78px;} .bar .tk2{flex:1;height:8px;background:var(--zen-mist);border-radius:4px;overflow:hidden;}
+  .bar .tk2>i{display:block;height:100%;background:var(--zen-primary);}
+  .h3{font-family:'Fraunces',serif;font-size:18px;margin-bottom:6px;font-weight:500;}
+
+  /* MILP visible simulation */
+  .milp-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;}
+  .milp-side{border-radius:12px;padding:12px;}
+  .milp-side.L{background:#FDF0EC;border:1.5px solid var(--zen-coral);}
+  .milp-side.R{background:#E8F5F0;border:1.5px solid var(--zen-primary);}
+  .milp-side .h{font-size:12px;font-weight:800;text-transform:uppercase;margin-bottom:8px;}
+  .milp-side.L .h{color:var(--zen-coral);} .milp-side.R .h{color:var(--zen-primary);}
+  .ppl{display:flex;flex-wrap:wrap;gap:4px;}
+  .p{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;position:relative;}
+  .p.unserved{opacity:.28;}
+  .p.gA{background:#1B7A7E;} .p.gB{background:#E8A04C;}
+  .milp-meta{font-size:11px;color:var(--muted);margin-top:8px;}
+  .milp-gap{font-family:'Fraunces',serif;font-size:20px;font-weight:600;}
+  .milp-legend{font-size:11px;color:var(--muted);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;}
+  .milp-legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-1px;}
+
+  /* caseworker */
+  .cw-row{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--zen-mist);border-radius:12px;margin-bottom:8px;}
+  .cw-pri{min-width:46px;height:40px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#fff;}
+  .cw-main{flex:1;} .cw-main h4{font-size:13px;} .cw-main .meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .cw-reason{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:4px;}
+  .cw-actions{display:flex;flex-direction:column;gap:6px;}
+  .cw-actions a,.cw-actions button{font-size:11px;font-weight:700;padding:7px 11px;border-radius:8px;text-decoration:none;text-align:center;cursor:pointer;border:1.5px solid var(--zen-primary);display:inline-flex;align-items:center;gap:5px;justify-content:center;}
+  .cw-actions a{background:var(--zen-primary);color:#fff;} .cw-actions button{background:#fff;color:var(--zen-primary);}
+  .cw-actions svg{width:12px;height:12px;}
+</style>
+</head>
+<body>
+
+<!-- icon defs -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <g id="i-food"><path d="M4 3v7a2 2 0 0 0 4 0V3M6 11v10M18 3c-2 0-3 2-3 5s1 4 3 4v9"/></g>
+  <g id="i-house"><path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2z"/></g>
+  <g id="i-health"><path d="M19 14c1.5-1.6 3-3.3 3-5.5A4.5 4.5 0 0 0 12 5 4.5 4.5 0 0 0 2 8.5C2 12 5 14.5 12 21c2-1.8 4-3.5 5.5-5"/></g>
+  <g id="i-child"><circle cx="12" cy="11" r="8"/><path d="M9 10h.01M15 10h.01M9 14c1 1 5 1 6 0"/></g>
+  <g id="i-work"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></g>
+  <g id="i-pin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></g>
+  <g id="i-clock"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g>
+  <g id="i-mic"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></g>
+  <g id="i-chat"><path d="M21 12a8 8 0 0 1-11 7l-5 2 2-5a8 8 0 1 1 14-4z"/></g>
+  <g id="i-person"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></g>
+  <g id="i-org"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9 15h6"/></g>
+  <g id="i-cw"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M15 3l2 2 3.5-3.5"/></g>
+  <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+  <g id="i-phone"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.4 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></g>
+  <g id="i-help"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></g>
+  <g id="i-chart"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></g>
+  <g id="i-note"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></g>
+  <g id="i-map"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></g>
+  <g id="i-shield"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/></g>
+  <g id="i-alert"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></g>
+  <g id="i-x"><path d="M18 6 6 18M6 6l12 12"/></g>
+  <g id="i-bolt"><path d="M13 2 3 14h8l-1 8 10-12h-8z"/></g>
+  <g id="i-scale"><path d="M12 3v18M5 7h14M7 7l-3 6a3 3 0 0 0 6 0zM17 7l-3 6a3 3 0 0 0 6 0z"/></g>
+  <g id="i-send"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></g>
+</defs></svg>
+
+<div class="worldbar">
+  <div class="brand">
+    <svg viewBox="0 0 72 72" fill="none">
+      <path d="M36 8 A28 28 0 1 1 18 16" stroke="#1B7A7E" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M18 16 L34 32 L48 26 L62 40" stroke="#E8A04C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="62" cy="40" r="5" fill="#E8A04C"/>
+    </svg>
+    <div class="name">Ze<b>n</b></div>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode on" id="modePerson" onclick="setMode('person')"><svg class="ic"><use href="#i-person"/></svg>I need help</button>
+    <button class="mode" id="modeOng" onclick="setMode('ong')"><svg class="ic"><use href="#i-org"/></svg>Organization</button>
+    <button class="mode" id="modeCw" onclick="setMode('cw')"><svg class="ic"><use href="#i-cw"/></svg>Caseworker</button>
+  </div>
+</div>
+
+<!-- ════ PERSON ════ -->
+<div id="person">
+  <!-- TAB: situation -->
+  <div class="tab-view active" id="tab-situation">
+    <div class="card">
+      <div id="flow0">
+        <h2>What's happening?</h2>
+        <div class="sub">A few taps, then tell us in your words.</div>
+        <div class="geo"><svg class="ic"><use href="#i-pin"/></svg><span id="geoText">We'll ask your location to find help nearby.</span></div>
+        <div class="label">What do you need most?</div>
+        <div class="chips" id="needChips">
+          <span class="chip" data-need="food"><svg class="ic"><use href="#i-food"/></svg>Food</span>
+          <span class="chip" data-need="housing"><svg class="ic"><use href="#i-house"/></svg>Housing</span>
+          <span class="chip" data-need="healthcare"><svg class="ic"><use href="#i-health"/></svg>Healthcare</span>
+          <span class="chip" data-need="childcare"><svg class="ic"><use href="#i-child"/></svg>Childcare</span>
+          <span class="chip" data-need="employment"><svg class="ic"><use href="#i-work"/></svg>Work</span>
+        </div>
+        <div class="label">How urgent?</div>
+        <div class="chips" id="urgChips">
+          <span class="chip amber" data-urg="today">Today</span>
+          <span class="chip amber" data-urg="this_week">This week</span>
+          <span class="chip amber" data-urg="this_month">This month</span>
+        </div>
+        <button class="btn primary" onclick="flowGo(1)">Continue</button>
+      </div>
+
+      <div id="flow1" style="display:none">
+        <h2>Tell us your situation</h2>
+        <div class="sub">Your words, any language. Type or use voice.</div>
+        <div class="consent">
+          <div class="ttl"><svg class="ic"><use href="#i-shield"/></svg>Your privacy</div>
+          <ul>
+            <li>We keep only the text needed to find help — never your name or audio.</li>
+            <li>In the full version, voice is transcribed <b>on your device</b>, so audio never leaves your phone.</li>
+            <li>We never share your info with immigration or police.</li>
+          </ul>
+          <label class="consent-check"><input type="checkbox" id="consentChk" onchange="toggleConsent()"> I understand and want to continue</label>
+        </div>
+        <div id="intakeArea" style="opacity:.4;pointer-events:none">
+          <textarea id="transcript" rows="3" placeholder="e.g. I lost my job, I have two kids, I need food this week. No car."></textarea>
+          <div class="mic-wrap">
+            <button class="mic" id="micBtn" onclick="toggleMic()"><svg class="ic"><use href="#i-mic"/></svg></button>
+            <div class="mic-hint" id="micHint">Or tap to speak (Chrome)</div>
+          </div>
+          <button class="btn primary" onclick="doIntake()">Continue</button>
+        </div>
+        <button class="btn ghost" onclick="flowGo(0)">Back</button>
+      </div>
+
+      <div id="flow2" style="display:none">
+        <h2>Did we understand?</h2>
+        <div class="quote" id="confTranscript">…</div>
+        <div class="conf"><div class="row"><span>Understanding confidence</span><b id="confPct">—</b></div>
+          <div class="track"><i id="confBar" style="width:0"></i></div></div>
+        <div id="confTags"></div>
+        <div id="confAction"></div>
+        <button class="btn primary" id="confirmBtn" onclick="goFollowups()">Yes, that's right</button>
+        <button class="btn ghost" onclick="flowGo(1)">Let me redo it</button>
+      </div>
+
+      <div id="flow25" style="display:none">
+        <h2>A few quick questions</h2>
+        <div class="sub">So we can tell you what you actually qualify for.</div>
+        <div id="followupList"></div>
+        <div id="eligSignals"></div>
+        <button class="btn primary" onclick="doMatch()">See what I qualify for</button>
+      </div>
+
+      <div id="flow3" style="display:none">
+        <h2>Your plan</h2>
+        <div id="routeBanner"></div>
+        <div class="sub">What to do, in order. Tap <svg class="ic" style="color:var(--zen-primary)"><use href="#i-help"/></svg> on any card to see why you qualify.</div>
+        <div id="planList"><div class="spinner">Optimizing your matches…</div></div>
+        <div class="savebox" id="saveBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: progress -->
+  <div class="tab-view" id="tab-progress">
+    <div class="card">
+      <h2>My progress</h2>
+      <div class="sub">Track each step. Tap to advance, or remove what you don't want.</div>
+      <div class="recover">
+        <div class="rl">Coming back? Enter your case number</div>
+        <div class="recover-row">
+          <input id="recoverInput" placeholder="ZEN-2026-XXXX">
+          <button class="btn primary sm" onclick="recoverCase()">Find</button>
+        </div>
+        <div id="recoverOut" style="font-size:12px;margin-top:6px"></div>
+      </div>
+      <div id="trackNum"></div>
+      <div id="trackList"><div class="spinner">No plan yet — start in "My situation".</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: near me -->
+  <div class="tab-view" id="tab-map">
+    <div class="card">
+      <h2>Near me</h2>
+      <div class="sub">Your matched resources on the map.</div>
+      <div id="map"></div>
+      <div class="legend">
+        <span><i style="background:#E0725C"></i>Start here</span>
+        <span><i style="background:#1B7A7E"></i>Your matches</span>
+        <span><i style="background:#5EA9AC"></i>You</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <button class="on" id="t-situation" onclick="showTab('situation')"><svg class="ic ic2"><use href="#i-note"/></svg>My situation</button>
+    <button id="t-progress" onclick="showTab('progress')"><svg class="ic ic2"><use href="#i-chart"/></svg>My progress</button>
+    <button id="t-map" onclick="showTab('map')"><svg class="ic ic2"><use href="#i-map"/></svg>Near me</button>
+  </div>
+
+  <button class="chat-fab" onclick="toggleChat()"><svg class="ic"><use href="#i-chat"/></svg></button>
+  <div class="chat-panel" id="chatPanel">
+    <div class="chat-head"><span>Zen helper</span><span class="x" onclick="toggleChat()"><svg class="ic"><use href="#i-x"/></svg></span></div>
+    <div class="chat-body" id="chatBody"></div>
+    <div class="chat-sugg" id="chatSugg"></div>
+    <div class="chat-input"><input id="chatIn" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendChat()"><button onclick="sendChat()"><svg class="ic"><use href="#i-send"/></svg></button></div>
+  </div>
+</div>
+
+<!-- ════ ONG ════ -->
+<div id="ong">
+  <div class="ong-badge"><svg class="ic"><use href="#i-org"/></svg>Organization view</div>
+  <div class="ong-grid">
+    <div class="ong-card">
+      <div class="h3">Register your capacity</div>
+      <div class="sub">Keep real availability live — people match to open spots, not dead data.</div>
+      <div class="label">Program name</div><input id="ongName" placeholder="e.g. Hope Pantry Monterrey">
+      <div class="label">Service type</div>
+      <div class="chips" id="ongService">
+        <span class="chip sel" data-s="food">Food</span><span class="chip" data-s="housing">Housing</span>
+        <span class="chip" data-s="healthcare">Healthcare</span><span class="chip" data-s="childcare">Childcare</span>
+        <span class="chip" data-s="employment">Work</span>
+      </div>
+      <div class="label">Open spots now</div><input id="ongCap" type="number" value="20" min="0">
+      <div class="label">Hours</div><input id="ongHours" placeholder="e.g. Mon-Fri 9-5">
+      <button class="btn primary" onclick="ongRegister()">Save — go live in matching</button>
+      <div id="ongOut"></div>
+    </div>
+    <div class="ong-card">
+      <div class="h3">Predicted demand next week</div>
+      <div class="sub">Pre-position capacity before the crisis. We forecast resources & geography — never individuals.</div>
+      <div id="ongmap" style="height:300px"></div>
+      <div class="legend">
+        <span><i style="background:#E0725C"></i>High shortfall</span>
+        <span><i style="background:#E8A04C"></i>Tight</span>
+        <span><i style="background:#1B7A7E"></i>OK</span>
+      </div>
+    </div>
+    <div class="ong-card">
+      <div class="h3">Outcomes — did help arrive?</div>
+      <div id="ongKpis"><div class="spinner">Loading…</div></div>
+      <div class="label">Equity audit — assignment rate by group</div>
+      <div id="ongEquity"></div>
+    </div>
+    <div class="ong-card">
+      <div class="h3">The fair-allocation engine (MILP batch)</div>
+      <div class="sub">Same people, same scarce slots, run two ways. Each square is a person; faded = not served.</div>
+      <div id="milpSim"><div class="spinner">Running the solver…</div></div>
+      <button class="btn ghost sm" style="margin-top:10px" onclick="runMilp()">Re-run batch</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ CASEWORKER ════ -->
+<div id="cw">
+  <div class="ong-badge" style="background:#7a3b1b"><svg class="ic"><use href="#i-cw"/></svg>Caseworker view</div>
+  <div class="ong-card">
+    <div class="h3">Escalation queue — triaged by need, not arrival order</div>
+    <div class="sub">Caseworker time is scarce. Zen ranks cases by vulnerability so the highest-need person is seen first.</div>
+    <div id="cwQueue"><div class="spinner">Loading queue…</div></div>
+  </div>
+</div>
+
+<script>
+const API=location.origin;
+const state={needs:[],urgency:"this_week",intake:null,coords:null,plan:[],tracking:null,answers:{},refined:{},ongService:"food",email:"",ongConsent:false};
+let pmap=null,omap=null,chatReady=false;
+const PHASES=["Viewed","Requested","Applied","Received"];
+function ic(n){return `<svg class="ic"><use href="#i-${n}"/></svg>`;}
+
+function saveLocal(){try{localStorage.setItem('zen',JSON.stringify({plan:state.plan,tracking:state.tracking,coords:state.coords}));}catch(e){}}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem('zen')||'{}');if(s.plan){state.plan=s.plan;state.tracking=s.tracking;state.coords=s.coords;}}catch(e){}}
+
+function setMode(m){
+  ['Person','Ong','Cw'].forEach(x=>document.getElementById('mode'+x).classList.toggle('on',m===x.toLowerCase()));
+  document.getElementById('person').style.display=m==='person'?'block':'none';
+  document.getElementById('ong').classList.toggle('active',m==='ong');
+  document.getElementById('cw').classList.toggle('active',m==='cw');
+  if(m==='ong')loadOng();
+  if(m==='cw')loadCaseworker();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function showTab(t){
+  document.querySelectorAll('.tab-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.remove('on'));
+  document.getElementById('t-'+t).classList.add('on');
+  if(t==='progress')renderTracker();
+  if(t==='map')setTimeout(renderMap,150);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function flowGo(n){for(let i=0;i<4;i++){const el=document.getElementById('flow'+i);if(el)el.style.display=(i===n)?'block':'none';}const f=document.getElementById('flow25');if(f)f.style.display='none';window.scrollTo({top:0,behavior:'smooth'});}
+
+document.querySelectorAll('#needChips .chip').forEach(c=>c.onclick=()=>{c.classList.toggle('sel');state.needs=[...document.querySelectorAll('#needChips .chip.sel')].map(x=>x.dataset.need);});
+document.querySelectorAll('#urgChips .chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('#urgChips .chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');state.urgency=c.dataset.urg;});
+
+function askGeo(){
+  if(!navigator.geolocation){document.getElementById('geoText').textContent="Location off — using a default area.";state.coords=[25.6866,-100.3161];return;}
+  navigator.geolocation.getCurrentPosition(
+    p=>{state.coords=[p.coords.latitude,p.coords.longitude];saveLocal();document.getElementById('geoText').textContent="Location found — we'll show help near you.";},
+    e=>{document.getElementById('geoText').textContent="Location off — using a default area. You can still continue.";state.coords=[25.6866,-100.3161];}
+  );
+}
+function toggleConsent(){const ok=document.getElementById('consentChk').checked;const a=document.getElementById('intakeArea');a.style.opacity=ok?'1':'.4';a.style.pointerEvents=ok?'auto':'none';}
+let recog=null,recording=false;
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){document.getElementById('micHint').textContent="Voice not supported — please type";return;}
+  if(!recog){recog=new SR();recog.continuous=true;recog.interimResults=true;recog.lang='en-US';
+    recog.onresult=e=>{let t='';for(const r of e.results)t+=r[0].transcript;document.getElementById('transcript').value=t;};
+    recog.onend=()=>{recording=false;document.getElementById('micBtn').classList.remove('rec');document.getElementById('micHint').textContent="Tap to speak again";};}
+  if(!recording){recog.start();recording=true;document.getElementById('micBtn').classList.add('rec');document.getElementById('micHint').textContent="Listening… tap to stop";}else recog.stop();
+}
+async function post(p,b){const r=await fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return r.json();}
+async function get(p){const r=await fetch(API+p);return r.json();}
+
+async function doIntake(){
+  let t=document.getElementById('transcript').value.trim();
+  if(!t&&state.needs.length){t="I need "+state.needs.join(" and ")+", "+state.urgency.replace('_',' ');}
+  if(!t)t="I need help";
+  const r=await post('/api/intake',{transcript:t});state.intake=r;state.intake.transcript=t;
+  document.getElementById('confTranscript').textContent='"'+t+'"';
+  const pct=Math.round(r.confidence*100);
+  document.getElementById('confPct').textContent=pct+'%';
+  document.getElementById('confBar').style.width=pct+'%';
+  document.getElementById('confBar').style.background=pct>=80?'#1B7A7E':pct>=50?'#E8A04C':'#E0725C';
+  const needs=r.needs.length?r.needs:state.needs;
+  document.getElementById('confTags').innerHTML=needs.map(n=>`<span class="tag-mini">${n}</span>`).join('')+`<span class="tag-mini">urgency: ${r.urgency}</span>`+`<span class="tag-mini">${r.language}</span>`;
+  let msg='';
+  if(r.action==='ESCALATE_SAFETY')msg=`<div class="escalate"><b>This needs a person, now.</b><br>We detected a safety-critical situation. Connecting you to a trained specialist instead of an automated list.</div>`;
+  else if(r.action==='ASK_REPEAT')msg=`<div class="ok" style="background:#FDF0EC;color:#E0725C">We couldn't quite hear that. Tap "Let me redo it" — after two tries we connect you to a person.</div>`;
+  else if(r.action==='CONFIRM_TRANSCRIPT')msg=`<div class="ok" style="background:#FCEBD6;color:#9a6a1f">Please confirm we understood before we continue.</div>`;
+  document.getElementById('confAction').innerHTML=msg;
+  document.getElementById('confirmBtn').style.display=(r.action==='ESCALATE_SAFETY')?'none':'block';
+  flowGo(2);
+}
+function goFollowups(){
+  const fu=(state.intake&&state.intake.followups)||[];
+  if(!fu.length){doMatch();return;}
+  document.getElementById('followupList').innerHTML=fu.map(q=>`
+    <div class="label">${q.q}</div>
+    <div class="chips" data-qid="${q.id}">${q.options.map(o=>`<span class="chip" onclick="pickFollowup(this,'${q.id}','${o.replace(/'/g,"\\'")}')">${o}</span>`).join('')}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">${q.why}</div>`).join('');
+  document.getElementById('eligSignals').innerHTML='';state.answers={};
+  document.getElementById('flow2').style.display='none';
+  document.getElementById('flow25').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function pickFollowup(el,qid,val){
+  const box=el.parentElement;box.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');
+  state.answers[qid]=val;
+  post('/api/followups/interpret',{answers:state.answers}).then(r=>{
+    state.refined=r.fields||{};
+    document.getElementById('eligSignals').innerHTML=r.signals.map(s=>`<div class="ok" style="text-align:left">${ic('check')} ${s}</div>`).join('');
+  });
+}
+async function doMatch(){
+  document.getElementById('flow25').style.display='none';flowGo(3);
+  const needs=(state.intake.needs&&state.intake.needs.length)?state.intake.needs:state.needs;
+  const rf=state.refined||{};
+  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:state.intake.urgency,zip_zone:1,has_transport:false,language:state.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
+  if(!r.plan||!r.plan.length){document.getElementById('planList').innerHTML='<div class="spinner">No matches under current capacity — escalating to a caseworker.</div>';return;}
+  state.tracking=r.tracking_number;state.plan=r.plan.map(p=>({...p,phase:0}));
+  const emer=r.tier==='emergency';
+  document.getElementById('routeBanner').innerHTML=`<div class="route" style="background:${emer?'#FDF0EC':'#E8F5F0'};color:${emer?'#9a3b22':'#0F3A3D'}">
+    <div class="rt">${emer?ic('bolt')+'Immediate response':ic('scale')+'Fair assignment'}</div>
+    <span style="font-weight:400">${r.routing_reason}</span></div>`;
+  saveLocal();renderPlan();renderSaveBox();
+}
+function renderPlan(){
+  document.getElementById('planList').innerHTML=state.plan.map((p,idx)=>`
+    <div class="res">
+      <div class="top">
+        <div class="rank">${p.rank}</div>
+        <div style="flex:1">
+          ${p.start_here?'<span class="start-badge">Start here today</span><br>':''}
+          <h4>${p.name}<span class="qhelp" onclick="toggleWhy(${idx})" title="Why you qualify">${ic('help')}</span></h4>
+          <div class="meta"><span>${ic('pin')}${p.address||p.distance_mi+' mi'}</span><span>${ic('clock')}${p.hours}</span><span>${Math.round(p.confidence*100)}% match</span></div>
+        </div>
+      </div>
+      <div class="why" id="why${idx}">${p.why_plain}
+        <div class="rd">${ic('check')} Written at <b>${p.readability.plain_level}</b> level — rules are usually ${p.readability.legal_level}.</div>
+        <details><summary>See the official rule</summary><div class="legal">§ ${p.citation}</div></details>
+      </div>
+      ${p.stale?`<div class="stale">${ic('alert')} Not verified in 45+ days — call before going</div>`:''}
+      <div class="steps">
+        <div class="st-title">Your next steps</div>
+        <ol>${p.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+        <div class="bring"><b>Bring:</b> ${p.bring}</div>
+      </div>
+      <div class="act"><button onclick="advance('${p.resource_id}')">${ic('check')} Mark as requested</button></div>
+    </div>`).join('');
+}
+function toggleWhy(i){document.getElementById('why'+i).classList.toggle('open');}
+function renderSaveBox(){
+  document.getElementById('saveBox').innerHTML=`
+    <div style="font-weight:700;font-size:13px;margin-bottom:4px">Your case number: <span style="color:var(--zen-primary)">${state.tracking}</span></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Write it down — you can come back anytime and track your progress with it.</div>
+    <div class="label" style="margin-top:0">Email for reminders <span class="opt">OPTIONAL</span></div>
+    <input id="emailIn" type="email" placeholder="you@email.com (not required)">
+    <label class="consent-check" style="margin-top:10px;font-weight:500;font-size:12.5px"><input type="checkbox" id="ongConsentChk"> <span><b>OPTIONAL:</b> Allow a partner organization to contact me to help. <span style="color:var(--muted)">(separate — you can skip this)</span></span></label>
+    <button class="btn primary" onclick="saveCase()">${state.tracking?'Save my case':'Save'}</button>
+    <div id="saveOut"></div>`;
+}
+async function saveCase(){
+  state.email=(document.getElementById('emailIn')||{}).value||"";
+  state.ongConsent=!!(document.getElementById('ongConsentChk')||{}).checked;
+  await post('/api/case/save',{tracking:state.tracking,plan:state.plan,email:state.email,ong_consent:state.ongConsent});
+  document.getElementById('saveOut').innerHTML=`<div class="ok">${ic('check')} Saved. Your case number is ${state.tracking}.</div>`;
+}
+function advance(rid){const p=state.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();showTab('progress');}
+
+async function recoverCase(){
+  const num=(document.getElementById('recoverInput').value||'').trim().toUpperCase();
+  if(!num){return;}
+  const r=await get('/api/case/'+encodeURIComponent(num));
+  if(r.found){state.plan=(r.plan||[]).map(p=>({...p,phase:p.phase||0}));state.tracking=num;saveLocal();
+    document.getElementById('recoverOut').innerHTML=`<span style="color:var(--zen-primary)">${ic('check')} Found your case.</span>`;renderTracker();}
+  else{document.getElementById('recoverOut').innerHTML=`<span style="color:var(--zen-coral)">No case found with that number.</span>`;}
+}
+function renderTracker(){
+  if(!state.plan.length){document.getElementById('trackNum').innerHTML='';document.getElementById('trackList').innerHTML='<div class="spinner">No plan yet — start in "My situation".</div>';return;}
+  document.getElementById('trackNum').innerHTML=`<div class="track-num"><small>Your tracking number</small><div class="n">${state.tracking||'—'}</div></div>`;
+  document.getElementById('trackList').innerHTML=state.plan.map(p=>{
+    const stepper=PHASES.map((ph,i)=>`<div class="ph ${i<p.phase?'done':i===p.phase?'cur':''}">${i>0?'<div class="line"></div>':''}<div class="dot">${i<p.phase?ic('check'):i+1}</div><small>${ph}</small></div>`).join('');
+    const canAdv=p.phase<3;
+    return `<div class="tk-item"><div class="tk-head"><h4>${p.name}</h4><button class="tk-x" title="Remove" onclick="dismiss('${p.resource_id}')">${ic('x')}</button></div>
+      <div class="stepper">${stepper}</div>
+      <div class="tk-follow">${followMsg(p)}</div>
+      ${canAdv?`<button class="btn ghost sm" style="margin-top:8px" onclick="advanceTo('${p.resource_id}')">Mark "${PHASES[p.phase+1]}"</button>`:`<div class="ok">${ic('check')} Loop closed — you received help</div>`}
+    </div>`;
+  }).join('');
+}
+function advanceTo(rid){const p=state.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();renderTracker();}
+function dismiss(rid){
+  if(!confirm("Remove this from your list? You won't get follow-ups for it."))return;
+  state.plan=state.plan.filter(x=>x.resource_id!==rid);saveLocal();renderTracker();
+  if(state.tracking)post('/api/case/save',{tracking:state.tracking,plan:state.plan,email:state.email,ong_consent:state.ongConsent});
+}
+function followMsg(p){return ["You've seen this. Next: contact them and mark it Requested.","Requested. Bring your documents and apply — then mark it Applied.","Applied. We'll check in at 24h & 72h. Tell us when you've Received help.","Received. This loop is closed — exactly what Zen measures."][p.phase];}
+
+function offset(b,i){return [b[0]+(Math.sin(i*1.7)*0.012),b[1]+(Math.cos(i*2.3)*0.014)];}
+function renderMap(){
+  const center=state.coords||[25.6866,-100.3161];
+  if(!pmap){pmap=L.map('map').setView(center,13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(pmap);}
+  else{pmap.setView(center,13);pmap.eachLayer(l=>{if(l instanceof L.CircleMarker)pmap.removeLayer(l);});}
+  L.circleMarker(center,{radius:9,color:'#5EA9AC',fillColor:'#5EA9AC',fillOpacity:1}).addTo(pmap).bindPopup("You are here");
+  state.plan.forEach((p,i)=>{const pos=offset(center,i+1);const col=p.start_here?'#E0725C':'#1B7A7E';
+    L.circleMarker(pos,{radius:10,color:col,fillColor:col,fillOpacity:.9}).addTo(pmap).bindPopup(`<b>${p.name}</b><br>${p.service} · ${p.hours}`);});
+  setTimeout(()=>pmap.invalidateSize(),200);
+}
+
+// ── chat (Gemini-backed via backend, with fallback) ──
+function toggleChat(){const pn=document.getElementById('chatPanel');pn.classList.toggle('open');if(!chatReady){bootChat();chatReady=true;}}
+function bootChat(){
+  pushBot("Hi, I'm here to help you through your plan. What would you like to know?");
+  const sugg=["What do I do first?","What should I bring?","Is my info safe?","What if a place is closed?"];
+  document.getElementById('chatSugg').innerHTML=sugg.map(s=>`<button onclick="askChat(this.textContent)">${s}</button>`).join('');
+}
+function pushBot(t){const b=document.getElementById('chatBody');b.innerHTML+=`<div class="msg bot">${t}</div>`;b.scrollTop=b.scrollHeight;}
+function pushMe(t){const b=document.getElementById('chatBody');b.innerHTML+=`<div class="msg me">${t}</div>`;b.scrollTop=b.scrollHeight;}
+function sendChat(){const i=document.getElementById('chatIn');if(!i.value.trim())return;askChat(i.value.trim());i.value='';}
+async function askChat(q){
+  pushMe(q);
+  const typing=document.createElement('div');typing.className='msg bot';typing.textContent='…';
+  document.getElementById('chatBody').appendChild(typing);
+  try{const r=await post('/api/chat',{message:q,plan:state.plan,tracking:state.tracking||''});typing.innerHTML=r.reply;}
+  catch(e){typing.textContent="I'm having trouble right now — try again in a moment.";}
+  document.getElementById('chatBody').scrollTop=99999;
+}
+
+// ── ONG ──
+document.querySelectorAll('#ongService .chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('#ongService .chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');state.ongService=c.dataset.s;});
+async function ongRegister(){
+  const name=document.getElementById('ongName').value.trim()||'Unnamed Program';
+  const cap=+document.getElementById('ongCap').value||0;
+  const hours=document.getElementById('ongHours').value.trim()||'Call for hours';
+  const r=await post('/api/ong/register',{name,service_type:state.ongService,capacity:cap,hours,zip_zone:1});
+  document.getElementById('ongOut').innerHTML=`<div class="ok">${ic('check')} ${r.message}</div>`;
+}
+let ongLoaded=false;
+async function loadOng(){
+  if(ongLoaded){setTimeout(()=>{if(omap)omap.invalidateSize();},200);return;}
+  ongLoaded=true;
+  const d=await get('/api/dashboard');
+  document.getElementById('ongKpis').innerHTML=`<div class="kpis">
+    <div class="kpi"><b>${d.people_matched}</b><small>matched</small></div>
+    <div class="kpi"><b>${Math.round(d.overall_loop_closure*100)}%</b><small>loop closed</small></div>
+    <div class="kpi"><b>${Math.round(d.parity_gap*100)}%</b><small>equity gap</small></div>
+    <div class="kpi"><b>${d.escalations.safety_critical+d.escalations.low_confidence+d.escalations.broken_loop}</b><small>escalations</small></div></div>`;
+  document.getElementById('ongEquity').innerHTML=Object.entries(d.equity_audit).map(([g,v])=>`<div class="bar"><span class="nm">${g}</span><span class="tk2"><i style="width:${Math.round(v*100)}%"></i></span>${Math.round(v*100)}%</div>`).join('')+`<div class="ok">${ic('check')} Parity maintained (±${Math.round(d.parity_gap*100)}%) — no VI-SPDAT bias</div>`;
+  // demand heat map
+  const fc=await get('/api/forecast');
+  if(!omap){omap=L.map('ongmap').setView([25.6866,-100.3161],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(omap);}
+  const colr={high:'#E0725C',mid:'#E8A04C',ok:'#1B7A7E'};
+  fc.zones_map.forEach(z=>{L.circleMarker([z.lat,z.lng],{radius:14+Math.max(0,z.max_gap),color:colr[z.level],fillColor:colr[z.level],fillOpacity:.55}).addTo(omap).bindPopup(`<b>Zone ${z.zone}</b><br>max shortfall +${z.max_gap}`);});
+  setTimeout(()=>omap.invalidateSize(),250);
+  runMilp();
+}
+async function runMilp(){
+  document.getElementById('milpSim').innerHTML='<div class="spinner">Running the solver…</div>';
+  const d=await get('/api/batch/run');
+  const cls=g=>g==='White'?'gA':'gB';
+  function grid(which){
+    return d.people.map(p=>{const served=p[which]!=null;return `<div class="p ${cls(p.group)} ${served?'':'unserved'}" title="${p.group}${served?' → served':' → not served'}">${served?'':'·'}</div>`;}).join('');
+  }
+  const nW=Math.round((d.naive.by_group.White||0)*100),nL=Math.round((d.naive.by_group.Latino||0)*100);
+  const fW=Math.round((d.fair.by_group.White||0)*100),fL=Math.round((d.fair.by_group.Latino||0)*100);
+  document.getElementById('milpSim').innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${d.people.length} people · ${d.resources.reduce((a,r)=>a+r.capacity,0)} slots across ${d.resources.length} sites</div>
+    <div class="milp-cols">
+      <div class="milp-side L"><div class="h">Naive (greedy)</div>
+        <div class="ppl">${grid('naive')}</div>
+        <div class="milp-meta">Group A served ${nW}% · Group B ${nL}%</div>
+        <div class="milp-gap" style="color:#E0725C">${Math.round(d.naive.parity_gap*100)}% gap</div></div>
+      <div class="milp-side R"><div class="h">Fair (MILP + parity)</div>
+        <div class="ppl">${grid('fair')}</div>
+        <div class="milp-meta">Group A served ${fW}% · Group B ${fL}%</div>
+        <div class="milp-gap" style="color:#1B7A7E">${Math.round(d.fair.parity_gap*100)}% gap</div></div>
+    </div>
+    <div class="milp-legend"><span><i style="background:#1B7A7E"></i>Group A</span><span><i style="background:#E8A04C"></i>Group B</span><span>faded = not served</span></div>
+    <div class="note" style="text-align:left;margin-top:8px">${d.explain}</div>`;
+}
+
+// ── caseworker ──
+const CW_COLOR=g=>g>=100?'#E0725C':g>=40?'#E8A04C':'#1B7A7E';
+const CW_REASONBG=r=>r==='safety'?'#FDE3DC':r==='broken_loop'?'#FCEBD6':'#D4E9E8';
+async function loadCaseworker(){
+  const d=await get('/api/caseworker/queue');const q=d.queue||[];
+  if(!q.length){document.getElementById('cwQueue').innerHTML=`<div class="ok">${ic('check')} Queue empty — every escalation resolved.</div>`;return;}
+  document.getElementById('cwQueue').innerHTML=q.map((c,i)=>`
+    <div class="cw-row">
+      <div class="cw-pri" style="background:${CW_COLOR(c.vulnerability)}">${i===0?'NOW':'#'+(i+1)}<span style="font-size:9px;opacity:.85">p${c.vulnerability}</span></div>
+      <div class="cw-main"><h4>${c.summary}${c.has_children?' · has kids':''}</h4>
+        <div class="meta">case ${c.id} · ${c.user_hash} · ${c.urgency} · ${c.language}</div>
+        <span class="cw-reason" style="background:${CW_REASONBG(c.reason)}">${c.reason_label}</span></div>
+      <div class="cw-actions"><a href="tel:+10000000000">${ic('phone')} Call</a><button onclick="resolveCase('${c.id}')">${ic('check')} Resolve</button></div>
+    </div>`).join('');
+}
+async function resolveCase(id){await post('/api/caseworker/resolve',{case_id:id});loadCaseworker();}
+
+loadLocal();askGeo();
+</script>
+</body>
+</html>

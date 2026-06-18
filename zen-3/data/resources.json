@@ -1,0 +1,364 @@
+{
+  "source": "seed",
+  "schema": "openreferral-hsds-3.0",
+  "count": 21,
+  "resources": [
+    {
+      "resource_id": "R0000",
+      "name": "Northside Food Bank",
+      "service_type": "food",
+      "address": "9271 Lincoln Ave",
+      "phone": "(555) 720-4111",
+      "hours": "Apply online",
+      "zip_zone": 3,
+      "capacity": 17,
+      "max_income": 2500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 12,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0001",
+      "name": "Eastside Community Fridge",
+      "service_type": "food",
+      "address": "5070 5th Ave",
+      "phone": "(555) 751-1686",
+      "hours": "Mon-Fri 9-5",
+      "zip_zone": 3,
+      "capacity": 44,
+      "max_income": 2500,
+      "min_household_size": 2,
+      "last_verified_days_ago": 20,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0002",
+      "name": "St. Mary's Pantry",
+      "service_type": "food",
+      "address": "345 Market St",
+      "phone": "(555) 260-1584",
+      "hours": "Mon-Fri 9-5",
+      "zip_zone": 4,
+      "capacity": 18,
+      "max_income": 1500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 59,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0003",
+      "name": "Harvest Hope Center",
+      "service_type": "food",
+      "address": "7317 Hill Rd",
+      "phone": "(555) 731-4828",
+      "hours": "Daily 8-8",
+      "zip_zone": 2,
+      "capacity": 24,
+      "max_income": 2500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 10,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0004",
+      "name": "Downtown Meal Program",
+      "service_type": "food",
+      "address": "4657 Washington St",
+      "phone": "(555) 285-5161",
+      "hours": "Tue/Thu 9-1",
+      "zip_zone": 3,
+      "capacity": 26,
+      "max_income": 1500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 3,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0005",
+      "name": "Riverside Food Shelf",
+      "service_type": "food",
+      "address": "9326 Oak Ave",
+      "phone": "(555) 310-5766",
+      "hours": "Apply online",
+      "zip_zone": 0,
+      "capacity": 30,
+      "max_income": 0,
+      "min_household_size": 0,
+      "last_verified_days_ago": 0,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0006",
+      "name": "City Rent Relief Program",
+      "service_type": "housing",
+      "address": "3536 Main St",
+      "phone": "(555) 584-7511",
+      "hours": "Apply online",
+      "zip_zone": 1,
+      "capacity": 32,
+      "max_income": 0,
+      "min_household_size": 0,
+      "last_verified_days_ago": 34,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0007",
+      "name": "Bridge Housing Services",
+      "service_type": "housing",
+      "address": "1527 Park Blvd",
+      "phone": "(555) 215-7718",
+      "hours": "Mon-Sat 10-4",
+      "zip_zone": 2,
+      "capacity": 13,
+      "max_income": 1500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 12,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0008",
+      "name": "Emergency Shelter Network",
+      "service_type": "housing",
+      "address": "1081 Lincoln Ave",
+      "phone": "(555) 381-4086",
+      "hours": "Apply online",
+      "zip_zone": 0,
+      "capacity": 34,
+      "max_income": 1500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 53,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0009",
+      "name": "Stable Homes Initiative",
+      "service_type": "housing",
+      "address": "6387 Oak Ave",
+      "phone": "(555) 630-4487",
+      "hours": "Apply online",
+      "zip_zone": 5,
+      "capacity": 6,
+      "max_income": 2000,
+      "min_household_size": 0,
+      "last_verified_days_ago": 2,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0010",
+      "name": "Community Health Clinic",
+      "service_type": "healthcare",
+      "address": "3168 Washington St",
+      "phone": "(555) 857-2643",
+      "hours": "Tue/Thu 9-1",
+      "zip_zone": 1,
+      "capacity": 8,
+      "max_income": 1500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 56,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0011",
+      "name": "Eastside Free Clinic",
+      "service_type": "healthcare",
+      "address": "256 Hill Rd",
+      "phone": "(555) 503-7327",
+      "hours": "Mon-Sat 10-4",
+      "zip_zone": 2,
+      "capacity": 10,
+      "max_income": 0,
+      "min_household_size": 0,
+      "last_verified_days_ago": 26,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0012",
+      "name": "Wellness Access Center",
+      "service_type": "healthcare",
+      "address": "4081 Main St",
+      "phone": "(555) 577-7089",
+      "hours": "Tue/Thu 9-1",
+      "zip_zone": 4,
+      "capacity": 45,
+      "max_income": 2500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 61,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0013",
+      "name": "Neighborhood Care Clinic",
+      "service_type": "healthcare",
+      "address": "2323 Washington St",
+      "phone": "(555) 842-3525",
+      "hours": "Daily 8-8",
+      "zip_zone": 4,
+      "capacity": 25,
+      "max_income": 1500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 24,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0014",
+      "name": "Childcare Subsidy Office",
+      "service_type": "childcare",
+      "address": "9175 Elm St",
+      "phone": "(555) 694-2286",
+      "hours": "Apply online",
+      "zip_zone": 1,
+      "capacity": 32,
+      "max_income": 0,
+      "min_household_size": 0,
+      "last_verified_days_ago": 13,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0015",
+      "name": "Bright Start Daycare Assistance",
+      "service_type": "childcare",
+      "address": "8494 Park Blvd",
+      "phone": "(555) 957-7416",
+      "hours": "Daily 8-8",
+      "zip_zone": 0,
+      "capacity": 22,
+      "max_income": 2500,
+      "min_household_size": 2,
+      "last_verified_days_ago": 37,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0016",
+      "name": "Family Support Childcare",
+      "service_type": "childcare",
+      "address": "2974 Oak Ave",
+      "phone": "(555) 433-8852",
+      "hours": "Daily 8-8",
+      "zip_zone": 4,
+      "capacity": 41,
+      "max_income": 0,
+      "min_household_size": 0,
+      "last_verified_days_ago": 27,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0017",
+      "name": "Job Placement Center",
+      "service_type": "employment",
+      "address": "371 Oak Ave",
+      "phone": "(555) 621-8302",
+      "hours": "Mon-Sat 10-4",
+      "zip_zone": 1,
+      "capacity": 21,
+      "max_income": 0,
+      "min_household_size": 0,
+      "last_verified_days_ago": 22,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0018",
+      "name": "WorkSource Career Hub",
+      "service_type": "employment",
+      "address": "6142 Market St",
+      "phone": "(555) 334-2510",
+      "hours": "Tue/Thu 9-1",
+      "zip_zone": 2,
+      "capacity": 29,
+      "max_income": 1500,
+      "min_household_size": 2,
+      "last_verified_days_ago": 42,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0019",
+      "name": "Skills & Training Office",
+      "service_type": "employment",
+      "address": "8651 Hill Rd",
+      "phone": "(555) 804-1574",
+      "hours": "Daily 8-8",
+      "zip_zone": 5,
+      "capacity": 7,
+      "max_income": 2500,
+      "min_household_size": 0,
+      "last_verified_days_ago": 39,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    },
+    {
+      "resource_id": "R0020",
+      "name": "Reemployment Services",
+      "service_type": "employment",
+      "address": "448 Hill Rd",
+      "phone": "(555) 693-2102",
+      "hours": "Mon-Fri 9-5",
+      "zip_zone": 0,
+      "capacity": 25,
+      "max_income": 2000,
+      "min_household_size": 0,
+      "last_verified_days_ago": 9,
+      "hsds": {
+        "schema": "openreferral-hsds-3.0",
+        "status": "active"
+      }
+    }
+  ]
+}

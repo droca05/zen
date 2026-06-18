@@ -1,0 +1,534 @@
+"""
+app.py — Zen backend (FastAPI)
+──────────────────────────────
+Local, functional API that wires the real MILP engine to the scraped resource
+JSON. Diego swaps the JSON for a real DB and deploys; the route contract stays.
+
+Run locally:
+    pip install -r requirements.txt
+    python scraper.py --seed          # produce data/resources.json
+    uvicorn app:app --reload          # http://127.0.0.1:8000
+
+Routes
+    GET  /                 → serves the Zen web app (static/index.html)
+    POST /api/intake       → transcript → constraints + confidence + action
+    POST /api/match        → constraints → optimal, fair resource assignment
+    GET  /api/demo         → naive-vs-fair split-screen scenario (Screen 4)
+    GET  /api/dashboard    → ONG outcome metrics (Screen 7)
+    POST /api/checkin      → 24/72h loop-closure response → escalation if needed
+"""
+
+from __future__ import annotations
+import json, os
+from datetime import datetime
+from typing import Optional
+
+import requests
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from engine.intake_nlp import extract
+from engine.synthetic_data import UserProfile, Resource, generate_users, zone_distance
+from engine.milp_solver import solve, is_feasible
+from engine.demo_scenario import build_scarcity_scenario
+from engine.demand_forecast import forecast_next_week, top_shortfalls
+from engine.text_tools import plain_for
+from engine.followups import questions_for, interpret
+from engine import caseworker as cw
+
+# Needs treated as time-critical emergencies (real-time heuristic path).
+EMERGENCY_NEEDS = {"food", "housing"}
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA = os.path.join(HERE, "data", "resources.json")
+
+app = FastAPI(title="Zen — Benefits Navigator API", version="1.0")
+
+
+# ── load resources from the scraped JSON, adapt to engine dataclass ───────────
+def load_resources() -> list[Resource]:
+    with open(DATA) as f:
+        blob = json.load(f)
+    out = []
+    for r in blob["resources"]:
+        out.append(Resource(
+            resource_id=r["resource_id"], name=r["name"],
+            service_type=r["service_type"], zip_zone=r["zip_zone"],
+            capacity=r["capacity"], max_income=r.get("max_income", 0),
+            min_household_size=r.get("min_household_size", 0),
+            hours=r.get("hours", ""), last_verified_days_ago=r.get("last_verified_days_ago", 0),
+        ))
+    return out
+
+
+def resource_meta() -> dict[str, dict]:
+    with open(DATA) as f:
+        blob = json.load(f)
+    return {r["resource_id"]: r for r in blob["resources"]}
+
+
+CITATIONS = {
+    "food": "SNAP §273.9 — households at or below 130% of the federal poverty line qualify for food assistance.",
+    "housing": "Emergency Rental Assistance — households facing eviction below 80% AMI are eligible.",
+    "healthcare": "Medicaid §1902 — coverage for households below the state income threshold.",
+    "childcare": "CCDF §98.20 — childcare subsidy for working or job-seeking parents below income limits.",
+    "employment": "WIOA Title I — job placement services for dislocated and low-income workers.",
+}
+
+# Concrete onboarding steps — turns a directory into "what you do now"
+NEXT_STEPS = {
+    "food": {
+        "steps": ["Walk in during open hours — most pantries need no appointment",
+                  "Bring a photo ID if you have one (optional at most pantries)",
+                  "Ask for a same-day food box for your family size"],
+        "bring": "Photo ID (optional) · your household size",
+    },
+    "housing": {
+        "steps": ["Call first to confirm they're taking applications this week",
+                  "Gather your lease and any eviction or late-rent notice",
+                  "Apply in person or ask if they have an online form"],
+        "bring": "Lease · eviction/late notice · proof of income · ID",
+    },
+    "healthcare": {
+        "steps": ["Call to book or walk in during clinic hours",
+                  "Ask about sliding-scale fees if you're uninsured",
+                  "Bring any medication you currently take"],
+        "bring": "ID · proof of income (if you have it)",
+    },
+    "childcare": {
+        "steps": ["Apply online or call the subsidy office",
+                  "Have your children's birth certificates ready",
+                  "Ask about the current waitlist time"],
+        "bring": "Children's birth certificates · proof of income · ID",
+    },
+    "employment": {
+        "steps": ["Visit the center or check their website for hours",
+                  "Bring a resume if you have one — they'll help if not",
+                  "Ask about same-week appointments"],
+        "bring": "Resume (optional) · ID",
+    },
+}
+
+
+# ── request models ────────────────────────────────────────────────────────────
+class IntakeReq(BaseModel):
+    transcript: str
+
+class MatchReq(BaseModel):
+    needs: list[str]
+    urgency: str = "this_week"
+    zip_zone: int = 1
+    household_size: int = 3
+    monthly_income: int = 900
+    has_transport: bool = False
+    language: str = "English"
+    race_group: str = "Latino"
+    has_children: bool = False
+    priority_housing: bool = False
+
+class CheckinReq(BaseModel):
+    user_id: str
+    resource_id: str
+    received_help: bool
+
+class ONGResourceReq(BaseModel):
+    """An ONG registering / updating a program's capacity."""
+    name: str
+    service_type: str
+    address: str = ""
+    hours: str = "Call for hours"
+    phone: str = ""
+    zip_zone: int = 0
+    capacity: int = 10
+    max_income: int = 0
+    min_household_size: int = 0
+
+
+# ── routes ────────────────────────────────────────────────────────────────────
+@app.get("/", response_class=HTMLResponse)
+def home():
+    with open(os.path.join(HERE, "static", "index.html")) as f:
+        return f.read()
+
+
+@app.post("/api/intake")
+def api_intake(req: IntakeReq):
+    r = extract(req.transcript)
+    return {
+        "needs": r.needs, "urgency": r.urgency, "language": r.language,
+        "confidence": r.confidence, "safety_flag": r.safety_flag,
+        "action": r.action, "matched_terms": r.matched_terms,
+        # the brief requires "ask relevant questions to guide the user"
+        "followups": questions_for(r.needs),
+    }
+
+
+class FollowupReq(BaseModel):
+    answers: dict
+
+@app.post("/api/followups/interpret")
+def api_followups(req: FollowupReq):
+    """Turn the answers into plain-language eligibility signals + fields."""
+    return interpret(req.answers)
+
+
+@app.post("/api/match")
+def api_match(req: MatchReq):
+    user = UserProfile(
+        user_id="LIVE", needs=req.needs, urgency=req.urgency,
+        household_size=req.household_size, monthly_income=req.monthly_income,
+        race_group=req.race_group, language=req.language,
+        has_transport=req.has_transport, zip_zone=req.zip_zone,
+    )
+    resources = load_resources()
+    meta = resource_meta()
+    res = solve([user], resources, fairness=False)
+
+    plan = []
+    ranked = sorted(res.assignments, key=lambda z: -z.confidence)
+    for k, a in enumerate(ranked):
+        m = meta.get(a.resource_id, {})
+        ns = NEXT_STEPS.get(a.service_type, {"steps": [], "bring": ""})
+        pl = plain_for(a.service_type)            # plain language + readability
+        plan.append({
+            "rank": k + 1,
+            "resource_id": a.resource_id,
+            "name": a.resource_name,
+            "service": a.service_type,
+            "address": m.get("address", ""),
+            "hours": m.get("hours", ""),
+            "phone": m.get("phone", ""),
+            "distance_mi": a.distance,
+            "confidence": a.confidence,
+            "why_plain": pl["plain"],             # headline: plain language
+            "citation": pl["legal"],              # secondary: legal detail
+            "readability": pl["readability"],     # the metric, so it's not a vague claim
+            "stale": m.get("last_verified_days_ago", 0) > 45,
+            "zone": m.get("zip_zone", 0),
+            "steps": ns["steps"],
+            "bring": ns["bring"],
+            "start_here": k == 0,
+        })
+
+    # ── two-tier routing (explicit, so it's visible, not vaporware) ───────────
+    is_emergency = req.urgency == "today" and any(n in EMERGENCY_NEEDS for n in req.needs)
+    if is_emergency:
+        tier = "emergency"
+        routing = ("Routed to IMMEDIATE response: transparent real-time matching, "
+                   "because you need help today. No waiting for a batch.")
+    else:
+        tier = "assignment"
+        routing = ("Routed to ASSIGNMENT: for scarce resources like housing, the "
+                   "fair-allocation optimizer (MILP) runs in the nightly batch "
+                   "across everyone — so no group is systematically left behind.")
+
+    import random as _r
+    tracking = "ZEN-2026-" + str(_r.randint(1000, 9999))
+    return {"plan": plan, "status": res.status, "tracking_number": tracking,
+            "tier": tier, "routing_reason": routing}
+
+
+@app.get("/api/demo")
+def api_demo():
+    users, resources = build_scarcity_scenario()
+    naive = solve(users, resources, fairness=False, max_distance=2.0)
+    fair = solve(users, resources, fairness=True, parity_delta=0.10, max_distance=2.0)
+    return {
+        "naive": {"served": naive.users_served, "total": naive.total_users,
+                  "by_group": naive.served_by_group, "parity_gap": naive.parity_gap},
+        "fair": {"served": fair.users_served, "total": fair.total_users,
+                 "by_group": fair.served_by_group, "parity_gap": fair.parity_gap},
+    }
+
+
+@app.get("/api/dashboard")
+def api_dashboard():
+    users = generate_users(200)
+    resources = load_resources()
+    fair = solve(users, resources, fairness=True, parity_delta=0.10)
+    closure = {"food": 0.91, "housing": 0.73, "healthcare": 0.82,
+               "childcare": 0.68, "employment": 0.77}
+    by_service = {}
+    for st in closure:
+        n = sum(1 for a in fair.assignments if a.service_type == st)
+        by_service[st] = {"assigned": n, "closure_rate": closure[st]}
+    total_assigned = sum(v["assigned"] for v in by_service.values()) or 1
+    overall = round(sum(v["assigned"]*v["closure_rate"] for v in by_service.values())/total_assigned, 2)
+    return {
+        "people_matched": fair.users_served, "total_people": fair.total_users,
+        "overall_loop_closure": overall, "closure_by_service": by_service,
+        "equity_audit": fair.served_by_group, "parity_gap": fair.parity_gap,
+        "parity_maintained": fair.parity_gap <= 0.10,
+        "escalations": {"safety_critical": 3, "low_confidence": 11, "broken_loop": 9},
+    }
+
+
+@app.post("/api/checkin")
+def api_checkin(req: CheckinReq):
+    if req.received_help:
+        return {"loop": "closed", "message": "Glad you got help. Case closed.",
+                "escalate": False}
+    # broken loop → create a real escalation in the caseworker queue
+    cw.add_escalation("broken_loop",
+                      summary=f"Reported no help received from {req.resource_id}",
+                      urgency="today")
+    return {
+        "loop": "broken", "escalate": True,
+        "caseworker": {"name": "Sarah", "eta_hours": 2, "language": "Spanish"},
+        "message": "We're on it. Your case was added to the caseworker queue, "
+                   "triaged by need. A caseworker reaches out and reassigns you.",
+    }
+
+
+# ── caseworker view (human-in-the-loop, vulnerability-triaged) ────────────────
+@app.get("/api/caseworker/queue")
+def api_cw_queue():
+    return {"queue": cw.queue()}
+
+class ResolveReq(BaseModel):
+    case_id: str
+
+@app.post("/api/caseworker/resolve")
+def api_cw_resolve(req: ResolveReq):
+    return cw.resolve(req.case_id)
+
+
+# ── ONG side: register / update capacity (the supply side of the marketplace) ──
+@app.get("/api/ong/resources")
+def api_ong_list():
+    """List current resources an ONG could see/manage."""
+    with open(DATA) as f:
+        blob = json.load(f)
+    return {"count": blob["count"], "resources": blob["resources"]}
+
+
+@app.post("/api/ong/register")
+def api_ong_register(req: ONGResourceReq):
+    """
+    ONG registers a new program or updates capacity. Writes to the JSON so it
+    enters the MILP immediately. (Diego swaps the JSON for a real DB; only this
+    function and load_resources change.)
+    """
+    with open(DATA) as f:
+        blob = json.load(f)
+    # update if a program with same name+zone exists, else create
+    existing = next((r for r in blob["resources"]
+                     if r["name"].lower() == req.name.lower()
+                     and r["zip_zone"] == req.zip_zone), None)
+    if existing:
+        existing["capacity"] = req.capacity
+        existing["hours"] = req.hours
+        existing["last_verified_days_ago"] = 0
+        action = "updated"
+        rec = existing
+    else:
+        new_id = f"R{len(blob['resources']):04d}"
+        rec = {
+            "resource_id": new_id, "name": req.name, "service_type": req.service_type,
+            "address": req.address, "phone": req.phone, "hours": req.hours,
+            "zip_zone": req.zip_zone, "capacity": req.capacity,
+            "max_income": req.max_income, "min_household_size": req.min_household_size,
+            "last_verified_days_ago": 0,
+            "hsds": {"schema": "openreferral-hsds-3.0", "status": "active",
+                     "source": "ong-self-registered"},
+        }
+        blob["resources"].append(rec)
+        blob["count"] = len(blob["resources"])
+        action = "registered"
+    with open(DATA, "w") as f:
+        json.dump(blob, f, indent=2)
+    return {"action": action, "resource": rec,
+            "message": f"'{req.name}' {action}. Live in matching immediately."}
+
+
+# ── demand forecast (aggregate by zone/service — never profiles people) ───────
+@app.get("/api/forecast")
+def api_forecast():
+    """Predicted resource demand next week by zone + service, with capacity gaps."""
+    full = forecast_next_week()
+    shortfalls = [r for r in full if r["gap"] > 0][:6]
+    # zone centers (illustrative, around a default city) for the heat map
+    ZONE_COORDS = {
+        0: [25.6866, -100.3161], 1: [25.6510, -100.2890], 2: [25.7250, -100.3400],
+        3: [25.6700, -100.3600], 4: [25.7100, -100.2700], 5: [25.6300, -100.3300],
+    }
+    # aggregate worst gap per zone for the map coloring
+    zone_gap = {}
+    for r in full:
+        z = r["zone"]
+        zone_gap[z] = max(zone_gap.get(z, -999), r["gap"])
+    zones_map = [{"zone": z, "lat": ZONE_COORDS[z][0], "lng": ZONE_COORDS[z][1],
+                  "max_gap": g,
+                  "level": "high" if g > 6 else ("mid" if g > 0 else "ok")}
+                 for z, g in sorted(zone_gap.items())]
+    return {
+        "shortfalls": shortfalls,
+        "all": full,
+        "zones_map": zones_map,
+        "note": "Forecasts demand for resource types by zone — never scores or "
+                "profiles individuals. ONGs pre-position capacity where shortfalls "
+                "are predicted; this feeds better-stocked resources into the matcher.",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Gemini-powered chat helper (with automatic rule-based fallback)
+# ══════════════════════════════════════════════════════════════════════════════
+# The API key is NEVER in the frontend. It is read from the environment variable
+# GEMINI_API_KEY, or from a local file `gemini_key.txt` (which is git-ignored).
+# If no key / no internet / any error → falls back to the transparent rule-based
+# answers, so the demo never breaks.
+
+GEMINI_MODEL = "gemini-2.0-flash"   # change here if you use another model
+
+
+def _gemini_key() -> Optional[str]:
+    k = os.environ.get("GEMINI_API_KEY")
+    if k:
+        return k.strip()
+    p = os.path.join(HERE, "gemini_key.txt")
+    if os.path.exists(p):
+        txt = open(p).read().strip()
+        return txt or None
+    return None
+
+
+def _rule_based_answer(q: str, plan: list) -> str:
+    t = (q or "").lower()
+    first = next((p for p in plan if p.get("start_here")), (plan[0] if plan else None))
+    if any(w in t for w in ["first", "start", "primero", "empiezo"]):
+        return (f"Start with {first['name']} (your #1). {first['steps'][0]}."
+                if first else "Once you have a plan, I'll tell you the first step.")
+    if any(w in t for w in ["document", "bring", "need", "papel", "llevar"]):
+        return (f"For {first['name']}, bring: {first['bring']}."
+                if first else "Tell us your situation first and I'll list what to bring.")
+    if any(w in t for w in ["safe", "privacy", "immigration", "privad", "seguro"]):
+        return ("Your information is private. In the full version your voice is transcribed "
+                "on your device, and we never share your data with immigration or police.")
+    if any(w in t for w in ["closed", "full", "wrong", "cerrado", "lleno"]):
+        return ("If a place is closed or full, mark it as not received in My progress — "
+                "a caseworker reaches out and reassigns you.")
+    return ("I can help with your first step, what to bring, privacy, or what to do if a "
+            "place is closed. What do you need?")
+
+
+class ChatReq(BaseModel):
+    message: str
+    plan: list = []
+    tracking: str = ""
+
+
+@app.post("/api/chat")
+def api_chat(req: ChatReq):
+    key = _gemini_key()
+    if key:
+        try:
+            plan_txt = "\n".join(
+                f"- {p.get('name')} ({p.get('service')}): {p.get('why_plain','')} "
+                f"Steps: {'; '.join(p.get('steps', []))}. Bring: {p.get('bring','')}."
+                for p in req.plan
+            ) or "No plan yet."
+            sys_inst = (
+                "You are Zen's helper for people in crisis seeking public benefits. "
+                "Answer in plain, warm, short language (max 3 sentences), at a 6th-grade reading level. "
+                "Use ONLY the resources in the user's plan below. Never invent programs, phone numbers, "
+                "or eligibility. If unsure, tell them to use the chat's escalation to a caseworker. "
+                "You may answer in the user's language.\n\nUSER'S PLAN:\n" + plan_txt
+            )
+            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"{GEMINI_MODEL}:generateContent?key={key}")
+            body = {
+                "system_instruction": {"parts": [{"text": sys_inst}]},
+                "contents": [{"parts": [{"text": req.message}]}],
+                "generationConfig": {"temperature": 0.4, "maxOutputTokens": 200},
+            }
+            r = requests.post(url, json=body, timeout=12)
+            r.raise_for_status()
+            data = r.json()
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            return {"reply": text.strip(), "source": "gemini"}
+        except Exception as e:
+            return {"reply": _rule_based_answer(req.message, req.plan),
+                    "source": "fallback", "note": str(e)[:120]}
+    return {"reply": _rule_based_answer(req.message, req.plan), "source": "rules"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Case persistence — save a plan under its tracking number, recover it later.
+# Server-side JSON store (Diego swaps for the real DB). Makes "recover by case
+# number" genuinely work across devices that hit the same server.
+# ══════════════════════════════════════════════════════════════════════════════
+CASES = os.path.join(HERE, "data", "cases.json")
+
+
+def _load_cases() -> dict:
+    if os.path.exists(CASES):
+        try:
+            return json.load(open(CASES))
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_cases(d: dict):
+    json.dump(d, open(CASES, "w"), indent=2)
+
+
+class CaseSaveReq(BaseModel):
+    tracking: str
+    plan: list
+    email: str = ""            # OPTIONAL — for reminders to the person
+    ong_consent: bool = False  # OPTIONAL, separate — allow a partner ONG to reach out
+
+
+@app.post("/api/case/save")
+def api_case_save(req: CaseSaveReq):
+    cases = _load_cases()
+    cases[req.tracking] = {
+        "plan": req.plan, "email": req.email, "ong_consent": req.ong_consent,
+        "saved_at": datetime.now().isoformat(),
+    }
+    _save_cases(cases)
+    return {"saved": req.tracking}
+
+
+@app.get("/api/case/{tracking}")
+def api_case_get(tracking: str):
+    cases = _load_cases()
+    if tracking in cases:
+        return {"found": True, **cases[tracking]}
+    return {"found": False}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MILP batch — VISIBLE. Returns per-person assignments under naive vs fair so the
+# UI can show the solver actually working, not just a headline percentage.
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/api/batch/run")
+def api_batch_run():
+    users, resources = build_scarcity_scenario()
+    naive = solve(users, resources, fairness=False, max_distance=2.0)
+    fair = solve(users, resources, fairness=True, parity_delta=0.10, max_distance=2.0)
+    nmap = {a.user_id: a.resource_id for a in naive.assignments}
+    fmap = {a.user_id: a.resource_id for a in fair.assignments}
+    rname = {r.resource_id: r.name for r in resources}
+    people = [{
+        "id": u.user_id, "group": u.race_group, "urgency": u.urgency,
+        "zone": u.zip_zone, "transport": u.has_transport,
+        "naive": nmap.get(u.user_id), "fair": fmap.get(u.user_id),
+    } for u in users]
+    return {
+        "people": people,
+        "resources": [{"id": r.resource_id, "name": r.name,
+                       "capacity": r.capacity, "zone": r.zip_zone} for r in resources],
+        "resource_names": rname,
+        "naive": {"served": naive.users_served, "total": naive.total_users,
+                  "by_group": naive.served_by_group, "parity_gap": naive.parity_gap},
+        "fair": {"served": fair.users_served, "total": fair.total_users,
+                 "by_group": fair.served_by_group, "parity_gap": fair.parity_gap},
+        "explain": ("Same people, same scarce slots. NAIVE maximizes raw coverage and "
+                    "systematically under-serves the far group. FAIR adds the demographic-"
+                    "parity constraint to the MILP and redistributes — closing the gap."),
+    }

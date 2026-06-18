@@ -1,0 +1,4 @@
+# Rename this file to  gemini_key.txt  and paste your Gemini API key below
+# (one line, nothing else). Get a free key at https://aistudio.google.com/apikey
+# This file is git-ignored so your key never gets committed.
+PASTE_YOUR_GEMINI_KEY_HERE

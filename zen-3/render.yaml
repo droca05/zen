@@ -1,0 +1,11 @@
+# Render deploy config — Diego connects this repo at render.com and it deploys.
+# Set GEMINI_API_KEY in the Render dashboard (Environment) so the chat uses Gemini.
+services:
+  - type: web
+    name: zen-benefits-navigator
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python scraper.py --seed"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
