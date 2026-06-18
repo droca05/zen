@@ -149,7 +149,7 @@ class ONGResourceReq(BaseModel):
 # ── routes ────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def home():
-    with open(os.path.join(HERE, "static", "index.html")) as f:
+    with open(os.path.join(HERE, "static", "index.html"), encoding="utf-8") as f:
         return f.read()
 
 
@@ -184,7 +184,7 @@ def api_match(req: MatchReq):
     )
     resources = load_resources()
     meta = resource_meta()
-    res = solve([user], resources, fairness=False)
+    res = solve([user], resources, fairness=True, parity_delta=0.10)
 
     plan = []
     ranked = sorted(res.assignments, key=lambda z: -z.confidence)
@@ -262,7 +262,7 @@ def api_dashboard():
         "overall_loop_closure": overall, "closure_by_service": by_service,
         "equity_audit": fair.served_by_group, "parity_gap": fair.parity_gap,
         "parity_maintained": fair.parity_gap <= 0.10,
-        "escalations": {"safety_critical": 3, "low_confidence": 11, "broken_loop": 9},
+        "escalations": _real_escalation_counts(),
     }
 
 
@@ -284,9 +284,28 @@ def api_checkin(req: CheckinReq):
 
 
 # ── caseworker view (human-in-the-loop, vulnerability-triaged) ────────────────
+def _real_escalation_counts() -> dict:
+    """Read actual escalation counts from the persistent store."""
+    all_cases = cw._load()
+    return {
+        "safety_critical": sum(1 for c in all_cases if c.get("reason") == "safety"),
+        "low_confidence": sum(1 for c in all_cases if c.get("reason") == "low_confidence"),
+        "broken_loop": sum(1 for c in all_cases if c.get("reason") == "broken_loop"),
+    }
+
+
 @app.get("/api/caseworker/queue")
 def api_cw_queue():
-    return {"queue": cw.queue()}
+    all_cases = cw._load()
+    open_cases = [c for c in all_cases if c.get("status") != "resolved"]
+    resolved_cases = [c for c in all_cases if c.get("status") == "resolved"]
+    for c in open_cases:
+        c["vulnerability"] = cw.vulnerability_score(c)
+        c["reason_label"] = cw.REASON_LABEL.get(c["reason"], c["reason"])
+    open_cases.sort(key=lambda c: -c["vulnerability"])
+    for c in resolved_cases:
+        c["reason_label"] = cw.REASON_LABEL.get(c.get("reason", ""), c.get("reason", ""))
+    return {"queue": open_cases, "resolved": resolved_cases}
 
 @app.get("/api/caseworker/dashboard")
 def api_cw_dashboard():
@@ -472,14 +491,14 @@ CASES = os.path.join(HERE, "data", "cases.json")
 def _load_cases() -> dict:
     if os.path.exists(CASES):
         try:
-            return json.load(open(CASES))
+            return json.load(open(CASES, encoding="utf-8"))
         except Exception:
             return {}
     return {}
 
 
 def _save_cases(d: dict):
-    json.dump(d, open(CASES, "w"), indent=2)
+    json.dump(d, open(CASES, "w", encoding="utf-8"), indent=2)
 
 
 class CaseSaveReq(BaseModel):
