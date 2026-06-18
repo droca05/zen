@@ -288,12 +288,17 @@ def api_checkin(req: CheckinReq):
 def api_cw_queue():
     return {"queue": cw.queue()}
 
+@app.get("/api/caseworker/dashboard")
+def api_cw_dashboard():
+    return {"stats": cw.stats(), "resolved": cw.resolved_cases(), "queue": cw.queue()}
+
 class ResolveReq(BaseModel):
     case_id: str
+    referred_to: str = ""
 
 @app.post("/api/caseworker/resolve")
 def api_cw_resolve(req: ResolveReq):
-    return cw.resolve(req.case_id)
+    return cw.resolve(req.case_id, req.referred_to)
 
 
 # ── ONG side: register / update capacity (the supply side of the marketplace) ──

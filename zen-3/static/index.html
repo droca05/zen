@@ -418,10 +418,34 @@
 <!-- ════ CASEWORKER ════ -->
 <div id="cw">
   <div class="ong-badge" style="background:#7a3b1b"><svg class="ic"><use href="#i-cw"/></svg>Caseworker view</div>
-  <div class="ong-card">
+  <div id="cwStats"></div>
+  <div class="ong-card" style="margin-top:14px">
     <div class="h3">Escalation queue — triaged by need, not arrival order</div>
     <div class="sub">Caseworker time is scarce. Zen ranks cases by vulnerability so the highest-need person is seen first.</div>
     <div id="cwQueue"><div class="spinner">Loading queue…</div></div>
+  </div>
+  <div class="ong-card" style="margin-top:14px">
+    <div class="h3">Resolved cases — where each person was referred</div>
+    <div class="sub">Closed loops, with the partner organization each case was sent to.</div>
+    <div id="cwResolved"><div class="spinner">Loading…</div></div>
+  </div>
+</div>
+
+<!-- resolve modal -->
+<div id="resolveModal" style="display:none;position:fixed;inset:0;background:rgba(15,58,61,.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:18px;padding:22px;max-width:340px;width:90%;">
+    <div class="h3">Where did you refer this person?</div>
+    <div class="sub">Pick the partner organization (or direct assistance).</div>
+    <select id="resolveOng" style="width:100%;border:1.5px solid var(--zen-mist);border-radius:12px;padding:12px;font-family:inherit;font-size:14px;margin-bottom:8px;">
+      <option>Direct assistance</option>
+      <option>Northside Food Bank</option>
+      <option>Eastside Community Fridge</option>
+      <option>City Rent Relief Program</option>
+      <option>Community Health Clinic</option>
+      <option>Job Placement Center</option>
+    </select>
+    <button class="btn primary" onclick="confirmResolve()">Confirm referral</button>
+    <button class="btn ghost" onclick="closeResolve()">Cancel</button>
   </div>
 </div>
 
@@ -690,23 +714,39 @@ async function runMilp(){
 // ── caseworker ──
 const CW_COLOR=g=>g>=100?'#E0725C':g>=40?'#E8A04C':'#1B7A7E';
 const CW_REASONBG=r=>r==='safety'?'#FDE3DC':r==='broken_loop'?'#FCEBD6':'#D4E9E8';
+let pendingResolve=null;
 async function loadCaseworker(){
-  const d=await get('/api/caseworker/queue');const q=d.queue||[];
-  if(!q.length){document.getElementById('cwQueue').innerHTML=`<div class="ok">${ic('check')} Queue empty — every escalation resolved.</div>`;return;}
-  document.getElementById('cwQueue').innerHTML=q.map((c,i)=>`
+  const d=await get('/api/caseworker/dashboard');const s=d.stats;
+  document.getElementById('cwStats').innerHTML=`<div class="kpis">
+    <div class="kpi"><b>${s.total}</b><small>total cases</small></div>
+    <div class="kpi"><b style="color:#E0725C">${s.open}</b><small>open</small></div>
+    <div class="kpi"><b style="color:#1B7A7E">${s.resolved}</b><small>resolved</small></div>
+    <div class="kpi"><b>${Math.round(s.resolution_rate*100)}%</b><small>resolution rate</small></div></div>`;
+  const q=d.queue||[];
+  document.getElementById('cwQueue').innerHTML = q.length? q.map((c,i)=>`
     <div class="cw-row">
       <div class="cw-pri" style="background:${CW_COLOR(c.vulnerability)}">${i===0?'NOW':'#'+(i+1)}<span style="font-size:9px;opacity:.85">p${c.vulnerability}</span></div>
       <div class="cw-main"><h4>${c.summary}${c.has_children?' · has kids':''}</h4>
         <div class="meta">case ${c.id} · ${c.user_hash} · ${c.urgency} · ${c.language}</div>
         <span class="cw-reason" style="background:${CW_REASONBG(c.reason)}">${c.reason_label}</span></div>
-      <div class="cw-actions"><a href="tel:+10000000000">${ic('phone')} Call</a><button onclick="resolveCase('${c.id}')">${ic('check')} Resolve</button></div>
-    </div>`).join('');
+      <div class="cw-actions"><a href="tel:+10000000000">${ic('phone')} Call</a><button onclick="openResolve('${c.id}')">${ic('check')} Resolve</button></div>
+    </div>`).join('') : `<div class="ok">${ic('check')} Queue empty — every escalation resolved.</div>`;
+  const rs=d.resolved||[];
+  document.getElementById('cwResolved').innerHTML = rs.length? rs.map(c=>`
+    <div class="cw-row" style="border-color:#E8F5F0;background:#FBFAF7">
+      <div class="cw-pri" style="background:#1B7A7E;min-width:40px">${ic('check')}</div>
+      <div class="cw-main"><h4>${c.summary}</h4>
+        <div class="meta">case ${c.id} · ${c.language} · was: ${c.reason_label}</div>
+        <span class="cw-reason" style="background:#E8F5F0;color:#1B7A7E">Referred to: ${c.referred_to||'Direct assistance'}</span></div>
+    </div>`).join('') : `<div class="sub">No resolved cases yet — resolve one above to see it here.</div>`;
 }
-async function resolveCase(id){
-  const btn=event&&event.target?event.target.closest('button'):null;
-  if(btn){btn.innerHTML=`${ic('check')} Resolved`;btn.style.background='var(--zen-primary)';btn.style.color='#fff';}
-  await post('/api/caseworker/resolve',{case_id:id});
-  setTimeout(loadCaseworker,450);
+function openResolve(id){pendingResolve=id;document.getElementById('resolveModal').style.display='flex';}
+function closeResolve(){pendingResolve=null;document.getElementById('resolveModal').style.display='none';}
+async function confirmResolve(){
+  if(!pendingResolve)return;
+  const ong=document.getElementById('resolveOng').value;
+  await post('/api/caseworker/resolve',{case_id:pendingResolve,referred_to:ong});
+  closeResolve();loadCaseworker();
 }
 
 loadLocal();askGeo();

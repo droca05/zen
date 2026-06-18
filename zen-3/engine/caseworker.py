@@ -89,14 +89,43 @@ def queue():
     return cases
 
 
-def resolve(case_id: str):
+def resolve(case_id: str, referred_to: str = ""):
     cases = _load()
     for c in cases:
         if c["id"] == case_id:
             c["status"] = "resolved"
             c["resolved_at"] = datetime.now().isoformat()
+            c["referred_to"] = referred_to or "Direct assistance"
     save(cases)
-    return {"resolved": case_id}
+    return {"resolved": case_id, "referred_to": referred_to or "Direct assistance"}
+
+
+def resolved_cases():
+    """Closed cases, most recent first, with where each was referred."""
+    cases = [c for c in _load() if c["status"] == "resolved"]
+    for c in cases:
+        c["reason_label"] = REASON_LABEL.get(c["reason"], c["reason"])
+    cases.sort(key=lambda c: c.get("resolved_at", ""), reverse=True)
+    return cases
+
+
+def stats():
+    """Panorama metrics for the caseworker dashboard."""
+    cases = _load()
+    openc = [c for c in cases if c["status"] == "open"]
+    closed = [c for c in cases if c["status"] == "resolved"]
+    # referrals grouped by ONG
+    by_ong = {}
+    for c in closed:
+        ong = c.get("referred_to", "Direct assistance")
+        by_ong[ong] = by_ong.get(ong, 0) + 1
+    return {
+        "total": len(cases),
+        "open": len(openc),
+        "resolved": len(closed),
+        "resolution_rate": round(len(closed) / len(cases), 2) if cases else 0,
+        "referrals_by_ong": by_ong,
+    }
 
 
 def add_escalation(reason: str, summary: str, **kw):
