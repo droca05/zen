@@ -193,8 +193,9 @@ class ONGResourceReq(BaseModel):
     name: str
     service_type: str
     address: str = ""
-    hours: str = "Call for hours"
     phone: str = ""
+    url: str = ""
+    hours: str = "Call for hours"
     zip_zone: int = 0
     capacity: int = 10
     max_income: int = 0
@@ -422,7 +423,7 @@ def api_ong_register(req: ONGResourceReq):
         new_id = f"R{len(all_ids):04d}"
         rec = {
             "resource_id": new_id, "name": req.name, "service_type": req.service_type,
-            "address": req.address, "phone": req.phone, "url": "",
+            "address": req.address, "phone": req.phone, "url": req.url,
             "hours": req.hours, "zip_zone": req.zip_zone, "capacity": req.capacity,
             "max_income": req.max_income, "min_household_size": req.min_household_size,
             "last_verified_days_ago": 0,

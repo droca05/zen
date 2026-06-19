@@ -540,22 +540,67 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
         <div class="dash-card">
           <h3>Register your capacity</h3>
           <p>Keep your real availability live — people connect to open slots, not stale data.</p>
-          <span class="zen-sublabel">Program name</span>
+
+          <span class="zen-sublabel">Program name <span style="color:#D9735A;">*</span></span>
           <input id="ong-name" class="zen-input" placeholder="e.g. Hope Food Pantry Downtown" style="margin-bottom:16px;">
-          <span class="zen-sublabel">Service type</span>
-          <div class="chip-group" id="ong-service-chips">
+
+          <span class="zen-sublabel">Service type <span style="color:#D9735A;">*</span></span>
+          <div class="chip-group" id="ong-service-chips" style="margin-bottom:16px;">
             <button class="need-btn sel" data-s="food" onclick="pickOngSvc(this)">Food</button>
             <button class="need-btn" data-s="housing" onclick="pickOngSvc(this)">Housing</button>
             <button class="need-btn" data-s="healthcare" onclick="pickOngSvc(this)">Healthcare</button>
             <button class="need-btn" data-s="childcare" onclick="pickOngSvc(this)">Childcare</button>
             <button class="need-btn" data-s="employment" onclick="pickOngSvc(this)">Employment</button>
           </div>
-          <span class="zen-sublabel">Open slots right now</span>
-          <input id="ong-cap" type="number" value="20" min="0" class="zen-input" style="margin-bottom:16px;">
-          <span class="zen-sublabel">Hours</span>
-          <input id="ong-hours" class="zen-input" placeholder="e.g. Mon–Fri 9–5" style="margin-bottom:22px;">
+
+          <span class="zen-sublabel">Address <span style="color:#D9735A;">*</span></span>
+          <input id="ong-address" class="zen-input" placeholder="e.g. Av. Garza Sada 2501, Monterrey" style="margin-bottom:16px;">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <span class="zen-sublabel">Phone</span>
+              <input id="ong-phone" type="tel" class="zen-input" placeholder="+52 81 1234 5678">
+            </div>
+            <div>
+              <span class="zen-sublabel">Service area</span>
+              <select id="ong-zone" class="zen-input" style="cursor:pointer;">
+                <option value="2">Centro-Poniente</option>
+                <option value="3">Centro-Oriente</option>
+                <option value="0">Sur-Poniente</option>
+                <option value="1">Sur-Oriente</option>
+                <option value="4">Norte-Poniente</option>
+                <option value="5">Norte-Oriente</option>
+              </select>
+            </div>
+          </div>
+
+          <span class="zen-sublabel">Website (optional)</span>
+          <input id="ong-url" type="url" class="zen-input" placeholder="https://yourorganization.org" style="margin-bottom:16px;">
+
+          <span class="zen-sublabel">Hours <span style="color:#D9735A;">*</span></span>
+          <input id="ong-hours" class="zen-input" placeholder="e.g. Mon–Fri 9 am–5 pm" style="margin-bottom:16px;">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <span class="zen-sublabel">Open slots now <span style="color:#D9735A;">*</span></span>
+              <input id="ong-cap" type="number" value="20" min="0" class="zen-input">
+            </div>
+            <div>
+              <span class="zen-sublabel">Max monthly income ($)</span>
+              <input id="ong-income" type="number" value="0" min="0" class="zen-input" placeholder="0 = no limit">
+            </div>
+          </div>
+
+          <span class="zen-sublabel">Min household size</span>
+          <select id="ong-household" class="zen-input" style="cursor:pointer;margin-bottom:22px;">
+            <option value="0">No minimum</option>
+            <option value="2">2+ people</option>
+            <option value="3">3+ people</option>
+            <option value="4">4+ people</option>
+          </select>
+
           <button class="zen-btn primary" onclick="ongRegister()">Save — activate in matching</button>
-          <div id="ong-reg-out"></div>
+          <div id="ong-reg-out" style="margin-top:12px;"></div>
         </div>
         <div class="dash-card">
           <h3>Predicted demand next week</h3>
@@ -1045,11 +1090,27 @@ async function askChat(q){
 
 function pickOngSvc(btn){document.querySelectorAll('#ong-service-chips .need-btn').forEach(x=>x.classList.remove('sel'));btn.classList.add('sel');S.ongService=btn.dataset.s;}
 async function ongRegister(){
-  const name=document.getElementById('ong-name').value.trim()||'Unnamed Program';
+  const out=document.getElementById('ong-reg-out');
+  const name=document.getElementById('ong-name').value.trim();
+  const address=document.getElementById('ong-address').value.trim();
+  const hours=document.getElementById('ong-hours').value.trim();
   const cap=+document.getElementById('ong-cap').value||0;
-  const hours=document.getElementById('ong-hours').value.trim()||'Call for hours';
-  const r=await post('/api/ong/register',{name,service_type:S.ongService,capacity:cap,hours,zip_zone:1});
-  document.getElementById('ong-reg-out').innerHTML=`<div class="zen-ok">✓ ${r.message}</div>`;
+  if(!name||!address||!hours){
+    out.innerHTML='<span style="color:#D9735A;font-size:13px;">Please fill in the required fields (name, address, hours).</span>';
+    return;
+  }
+  const phone=document.getElementById('ong-phone').value.trim();
+  const url=document.getElementById('ong-url').value.trim();
+  const zip_zone=+document.getElementById('ong-zone').value;
+  const max_income=+document.getElementById('ong-income').value||0;
+  const min_household_size=+document.getElementById('ong-household').value||0;
+  out.innerHTML='<span style="color:rgba(20,52,47,.5);font-size:13px;">Saving…</span>';
+  try{
+    const r=await post('/api/ong/register',{name,service_type:S.ongService,address,phone,url,hours,zip_zone,capacity:cap,max_income,min_household_size});
+    out.innerHTML=`<div class="zen-ok" style="display:flex;align-items:center;gap:8px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M5 12l4 4 10-10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>${r.message}</div>`;
+  }catch(e){
+    out.innerHTML='<span style="color:#D9735A;font-size:13px;">Could not save — check your connection and try again.</span>';
+  }
 }
 let orgLoaded=false;
 async function loadOrg(){
