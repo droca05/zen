@@ -486,10 +486,12 @@ def api_chat(req: ChatReq):
             ) or "No plan yet."
             sys_inst = (
                 "You are Zen's helper for people in crisis seeking public benefits. "
+                "IMPORTANT: Detect the language of the user's message and reply in THAT SAME language. "
+                "If they write in Spanish, reply in Spanish. If English, reply in English. "
                 "Answer in plain, warm, short language (max 3 sentences), at a 6th-grade reading level. "
                 "Use ONLY the resources in the user's plan below. Never invent programs, phone numbers, "
                 "or eligibility. If unsure, tell them to use the chat's escalation to a caseworker. "
-                "You may answer in the user's language.\n\nUSER'S PLAN:\n" + plan_txt
+                "\n\nUSER'S PLAN:\n" + plan_txt
             )
             url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
                    f"{GEMINI_MODEL}:generateContent?key={key}")
@@ -498,10 +500,13 @@ def api_chat(req: ChatReq):
                 "contents": [{"parts": [{"text": req.message}]}],
                 "generationConfig": {"temperature": 0.4, "maxOutputTokens": 200},
             }
-            r = requests.post(url, json=body, timeout=12)
+            r = requests.post(url, json=body, timeout=20)
             r.raise_for_status()
             data = r.json()
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            candidates = data.get("candidates", [])
+            if not candidates:
+                raise ValueError(f"No candidates: {data}")
+            text = candidates[0]["content"]["parts"][0]["text"]
             return {"reply": text.strip(), "source": "gemini"}
         except Exception as e:
             return {"reply": _rule_based_answer(req.message, req.plan),
