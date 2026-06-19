@@ -83,13 +83,9 @@ def _load():
     sb = _get_sb()
     if sb:
         rows = sb.table("escalations").select("*").execute().data
-        if not rows:
-            defaults = _seed()
-            sb.table("escalations").insert(defaults).execute()
-            return defaults
-        return rows
+        return rows or []
     if not os.path.exists(STORE):
-        save(_seed())
+        return []
     with open(STORE, encoding="utf-8") as f:
         return json.load(f)
 

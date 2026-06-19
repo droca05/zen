@@ -56,10 +56,20 @@ URGENCY_KEYWORDS = {
 
 # Safety-critical keywords → MUST route to a human, AI does NOT proceed.
 SAFETY_KEYWORDS = [
-    "suicide", "kill myself", "hurt myself", "abuse", "hit me", "violence",
-    "danger", "weapon", "child alone", "domestic",
-    "suicidio", "matarme", "lastimar", "abuso", "golpea", "violencia",
-    "peligro", "arma",
+    # English — self-harm / suicide
+    "suicide", "kill myself", "end my life", "take my life", "want to die",
+    "don't want to live", "no reason to live", "hurt myself", "harm myself",
+    "self harm", "self-harm", "cut myself",
+    # English — violence / danger
+    "abuse", "hit me", "violence", "danger", "weapon", "child alone", "domestic",
+    "threaten", "threatened", "beat me", "rape", "assault",
+    # Spanish — self-harm / suicide
+    "suicidio", "matarme", "quitarme la vida", "acabar con mi vida",
+    "quiero morir", "no quiero vivir", "hacerme daño", "lastimarme",
+    "cortarme",
+    # Spanish — violence / danger
+    "lastimar", "abuso", "golpea", "golpean", "violencia",
+    "peligro", "arma", "amenaza", "violar", "agresion",
 ]
 
 LANG_HINTS = {

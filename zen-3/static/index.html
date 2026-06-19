@@ -756,7 +756,7 @@ async function doIntake(){
   document.getElementById('conf-tags').innerHTML='';
   document.getElementById('conf-action').innerHTML='';
   document.getElementById('btn-confirm').style.display='block';
-  const r=await post('/api/intake',{transcript:t});
+  const r=await post('/api/intake',{transcript:t,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null});
   S.intake=r;S.intake.transcript=t;
   const pct=Math.round(r.confidence*100);
   document.getElementById('conf-pct').textContent=pct+'%';
@@ -765,7 +765,11 @@ async function doIntake(){
   const needs=r.needs.length?r.needs:S.needs;
   document.getElementById('conf-tags').innerHTML=needs.map(n=>`<span style="background:#D4E9E8;border:1px solid rgba(20,52,47,.22);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#0F3A3D;">${n}</span>`).join('')+`<span style="background:#D4E9E8;border:1px solid rgba(20,52,47,.22);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#0F3A3D;">urgency: ${r.urgency}</span><span style="background:#D4E9E8;border:1px solid rgba(20,52,47,.22);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#0F3A3D;">${r.language}</span>`;
   let msg='';
-  if(r.action==='ESCALATE_SAFETY'){msg='<div class="zen-err">This situation needs a person right now. We detected a critical safety situation. Connecting you with a specialist.</div>';document.getElementById('btn-confirm').style.display='none';}
+  if(r.action==='ESCALATE_SAFETY'){
+    const locNote=S.coords?'Your location has been shared with the caseworker.':'Enable location so we can share it with the caseworker.';
+    msg=`<div class="zen-err" style="font-size:15px;line-height:1.6;"><b>You are not alone.</b><br>A caseworker has been notified and will reach out to you. ${locNote}<br><br>If you are in immediate danger, please call <b>911</b> or the crisis line <b>800-290-0024</b>.</div>`;
+    document.getElementById('btn-confirm').style.display='none';
+  }
   else if(r.action==='ASK_REPEAT')msg='<div class="zen-warn">We couldn\'t understand well. Tap "Let me correct it" — after two tries we connect you with a person.</div>';
   else if(r.action==='CONFIRM_TRANSCRIPT')msg='<div class="zen-warn">Please confirm we understood you before continuing.</div>';
   document.getElementById('conf-action').innerHTML=msg;

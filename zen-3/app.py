@@ -163,6 +163,8 @@ def _build_steps(service: str, m: dict) -> list[str]:
 # ── request models ────────────────────────────────────────────────────────────
 class IntakeReq(BaseModel):
     transcript: str
+    lat: Optional[float] = None
+    lon: Optional[float] = None
 
 class MatchReq(BaseModel):
     needs: list[str]
@@ -208,11 +210,22 @@ def home():
 @app.post("/api/intake")
 def api_intake(req: IntakeReq):
     r = extract(req.transcript)
+    if r.safety_flag:
+        loc_parts = []
+        if req.lat is not None: loc_parts.append(f"lat: {req.lat:.5f}")
+        if req.lon is not None: loc_parts.append(f"lon: {req.lon:.5f}")
+        loc_str = " · ".join(loc_parts) if loc_parts else "location not provided"
+        cw.add_escalation(
+            "safety",
+            summary=f"EMERGENCY — safety keyword detected · {loc_str}",
+            urgency="today",
+            safety_flag=True,
+            language=r.language,
+        )
     return {
         "needs": r.needs, "urgency": r.urgency, "language": r.language,
         "confidence": r.confidence, "safety_flag": r.safety_flag,
         "action": r.action, "matched_terms": r.matched_terms,
-        # the brief requires "ask relevant questions to guide the user"
         "followups": questions_for(r.needs),
     }
 
