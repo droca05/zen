@@ -186,6 +186,7 @@ class CheckinReq(BaseModel):
     received_help: bool
     contact_phone: str = ""
     contact_email: str = ""
+    user_message: str = ""
 
 class ONGResourceReq(BaseModel):
     """An ONG registering / updating a program's capacity."""
@@ -345,6 +346,8 @@ def api_checkin(req: CheckinReq):
     summary = f"No help received from {req.resource_id}"
     if contact_str:
         summary += f" — {contact_str}"
+    if req.user_message:
+        summary += f" | \"{req.user_message.strip()}\""
     cw.add_escalation("broken_loop", summary=summary, urgency="today")
     return {
         "loop": "broken", "escalate": True,
