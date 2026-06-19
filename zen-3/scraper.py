@@ -47,59 +47,106 @@ def scrape_osm(bbox: str = "29.5,-95.7,30.1,-95.1", max_per_type: int = 8) -> li
     """
     Fetch real community resources from OpenStreetMap via Overpass API.
     bbox = "south,west,north,east"  (default: Houston, TX)
-    No API key required.
+    Uses a single combined query to avoid rate-limiting.
     """
     try:
         import requests
     except ImportError:
         sys.exit("pip install requests")
 
-    QUERIES = [
-        ("food",       'node["amenity"="food_bank"]({b}); way["amenity"="food_bank"]({b});'),
-        ("food",       'node["amenity"="soup_kitchen"]({b}); way["amenity"="soup_kitchen"]({b});'),
-        ("housing",    'node["social_facility"="shelter"]({b}); way["social_facility"="shelter"]({b});'),
-        ("healthcare", 'node["amenity"="clinic"]({b}); way["amenity"="clinic"]({b});'),
-        ("healthcare", 'node["amenity"="health_post"]({b}); way["amenity"="health_post"]({b});'),
-        ("childcare",  'node["amenity"="childcare"]({b}); way["amenity"="childcare"]({b});'),
-        ("employment", 'node["office"="employment_agency"]({b}); way["office"="employment_agency"]({b});'),
-    ]
+    # One combined query — one HTTP request, no rate limit issues
+    b = bbox
+    query = f"""
+[out:json][timeout:40];
+(
+  node["amenity"="food_bank"]({b});
+  way["amenity"="food_bank"]({b});
+  node["amenity"="soup_kitchen"]({b});
+  way["amenity"="soup_kitchen"]({b});
+  node["social_facility"="food_bank"]({b});
+  node["social_facility"="food_pantry"]({b});
+  node["amenity"="shelter"]({b});
+  way["amenity"="shelter"]({b});
+  node["social_facility"="shelter"]({b});
+  way["social_facility"="shelter"]({b});
+  node["social_facility"="homeless_shelter"]({b});
+  node["amenity"="clinic"]({b});
+  way["amenity"="clinic"]({b});
+  node["amenity"="health_post"]({b});
+  node["healthcare"="clinic"]({b});
+  way["healthcare"="clinic"]({b});
+  node["amenity"="childcare"]({b});
+  way["amenity"="childcare"]({b});
+  node["amenity"="kindergarten"]({b});
+  way["amenity"="kindergarten"]({b});
+  node["office"="employment_agency"]({b});
+  way["office"="employment_agency"]({b});
+  node["government"="employment_agency"]({b});
+);
+out center;
+"""
+
+    # Tag → service type mapping
+    def _service(tags: dict) -> str:
+        amenity = tags.get("amenity", "")
+        sf = tags.get("social_facility", "")
+        office = tags.get("office", "") + tags.get("government", "")
+        hc = tags.get("healthcare", "")
+        if amenity in ("food_bank", "soup_kitchen") or sf in ("food_bank", "food_pantry"):
+            return "food"
+        if amenity == "shelter" or sf in ("shelter", "homeless_shelter"):
+            return "housing"
+        if amenity in ("clinic", "health_post") or hc == "clinic":
+            return "healthcare"
+        if amenity in ("childcare", "kindergarten"):
+            return "childcare"
+        if "employment" in office:
+            return "employment"
+        return "food"   # fallback
+
+    try:
+        resp = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data={"data": query},
+            headers={"User-Agent": "ZenBenefitsNavigator/1.0 (hackathon research)"},
+            timeout=45,
+        )
+        resp.raise_for_status()
+        elements = resp.json().get("elements", [])
+    except Exception as e:
+        print(f"  OSM request failed: {e}")
+        return []
 
     records, rid, seen = [], 0, set()
-    for service_type, qtpl in QUERIES:
-        q = "[out:json][timeout:20];\n(\n" + qtpl.replace("{b}", bbox) + "\n);\nout center;"
-        try:
-            resp = requests.post("https://overpass-api.de/api/interpreter", data=q, timeout=25)
-            resp.raise_for_status()
-            elements = resp.json().get("elements", [])
-            count = 0
-            for el in elements:
-                tags = el.get("tags", {})
-                name = tags.get("name", "").strip()
-                if not name or name in seen:
-                    continue
-                seen.add(name)
-                addr = " ".join(filter(None, [
-                    tags.get("addr:housenumber", ""),
-                    tags.get("addr:street", ""),
-                    tags.get("addr:city", ""),
-                ])).strip() or tags.get("addr:full", "")
-                records.append(_hsds_record(
-                    rid=f"R{rid:04d}", name=name, service=service_type,
-                    address=addr,
-                    hours=tags.get("opening_hours", "Call for hours"),
-                    phone=tags.get("phone", tags.get("contact:phone", "")),
-                    url=tags.get("website", tags.get("contact:website", "")),
-                    zone=rid % 6, capacity=random.randint(10, 40),
-                    verified_days=0,
-                ))
-                rid += 1
-                count += 1
-                if count >= max_per_type:
-                    break
-            print(f"  {service_type:12s} → {count} results")
-        except Exception as e:
-            print(f"  Warning: OSM query failed for {service_type}: {e}")
-        time.sleep(1)   # be polite to Overpass
+    counts: dict[str, int] = {}
+    for el in elements:
+        tags = el.get("tags", {})
+        name = tags.get("name", "").strip()
+        if not name or name in seen:
+            continue
+        service = _service(tags)
+        if counts.get(service, 0) >= max_per_type:
+            continue
+        seen.add(name)
+        addr = " ".join(filter(None, [
+            tags.get("addr:housenumber", ""),
+            tags.get("addr:street", ""),
+            tags.get("addr:city", ""),
+        ])).strip() or tags.get("addr:full", "")
+        records.append(_hsds_record(
+            rid=f"R{rid:04d}", name=name, service=service,
+            address=addr,
+            hours=tags.get("opening_hours", "Call for hours"),
+            phone=tags.get("phone", tags.get("contact:phone", "")),
+            url=tags.get("website", tags.get("contact:website", "")),
+            zone=rid % 6, capacity=random.randint(10, 40),
+            verified_days=0,
+        ))
+        counts[service] = counts.get(service, 0) + 1
+        rid += 1
+
+    for svc, n in sorted(counts.items()):
+        print(f"  {svc:12s} → {n} results")
     return records
 
 
