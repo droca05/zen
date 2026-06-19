@@ -194,6 +194,7 @@ class ONGResourceReq(BaseModel):
     service_type: str
     address: str = ""
     phone: str = ""
+    email: str = ""
     url: str = ""
     hours: str = "Call for hours"
     zip_zone: int = 0

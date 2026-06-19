@@ -574,8 +574,16 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
             </div>
           </div>
 
-          <span class="zen-sublabel">Website (optional)</span>
-          <input id="ong-url" type="url" class="zen-input" placeholder="https://yourorganization.org" style="margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <span class="zen-sublabel">Contact email</span>
+              <input id="ong-email" type="email" class="zen-input" placeholder="contact@org.mx">
+            </div>
+            <div>
+              <span class="zen-sublabel">Website</span>
+              <input id="ong-url" type="url" class="zen-input" placeholder="https://yourorganization.org">
+            </div>
+          </div>
 
           <span class="zen-sublabel">Hours <span style="color:#D9735A;">*</span></span>
           <input id="ong-hours" class="zen-input" placeholder="e.g. Mon–Fri 9 am–5 pm" style="margin-bottom:16px;">
@@ -614,9 +622,8 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
         </div>
         <div class="dash-card">
           <h3>Results — did help arrive?</h3>
+          <p>Loop closure: help is only counted when the person confirms it arrived.</p>
           <div id="ong-kpis"><div class="spinner">Loading…</div></div>
-          <span class="zen-sublabel" style="margin-top:16px;">Equity audit — assignment rate by group</span>
-          <div id="ong-equity"></div>
         </div>
         <div class="dash-card">
           <h3>Fair assignment engine (MILP batch)</h3>
@@ -1100,13 +1107,14 @@ async function ongRegister(){
     return;
   }
   const phone=document.getElementById('ong-phone').value.trim();
+  const email=document.getElementById('ong-email').value.trim();
   const url=document.getElementById('ong-url').value.trim();
   const zip_zone=+document.getElementById('ong-zone').value;
   const max_income=+document.getElementById('ong-income').value||0;
   const min_household_size=+document.getElementById('ong-household').value||0;
   out.innerHTML='<span style="color:rgba(20,52,47,.5);font-size:13px;">Saving…</span>';
   try{
-    const r=await post('/api/ong/register',{name,service_type:S.ongService,address,phone,url,hours,zip_zone,capacity:cap,max_income,min_household_size});
+    const r=await post('/api/ong/register',{name,service_type:S.ongService,address,phone,email,url,hours,zip_zone,capacity:cap,max_income,min_household_size});
     out.innerHTML=`<div class="zen-ok" style="display:flex;align-items:center;gap:8px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M5 12l4 4 10-10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>${r.message}</div>`;
   }catch(e){
     out.innerHTML='<span style="color:#D9735A;font-size:13px;">Could not save — check your connection and try again.</span>';
@@ -1117,13 +1125,33 @@ async function loadOrg(){
   if(orgLoaded){setTimeout(()=>{if(omap)omap.invalidateSize();},200);return;}
   orgLoaded=true;
   const d=await get('/api/dashboard');
-  document.getElementById('ong-kpis').innerHTML=`<div class="kpi-grid">
-    <div class="kpi-box"><b>${d.people_matched}</b><small>matched</small></div>
-    <div class="kpi-box"><b>${Math.round(d.overall_loop_closure*100)}%</b><small>loop closed</small></div>
-    <div class="kpi-box"><b style="color:#C87020;">${Math.round(d.parity_gap*100)}%</b><small>equity gap</small></div>
-    <div class="kpi-box"><b>${d.escalations.safety_critical+d.escalations.low_confidence+d.escalations.broken_loop}</b><small>escalations</small></div>
-  </div>`;
-  document.getElementById('ong-equity').innerHTML=Object.entries(d.equity_audit).map(([g,v])=>`<div class="eq-bar"><span class="nm">${g}</span><span class="tk"><i style="width:${Math.round(v*100)}%"></i></span><span class="pct">${Math.round(v*100)}%</span></div>`).join('')+`<div class="zen-ok" style="margin-top:10px;">✓ Parity maintained (±${Math.round(d.parity_gap*100)}%) — no VI-SPDAT bias</div>`;
+  const SVC_ICON={food:'🥗',housing:'🏠',healthcare:'🏥',childcare:'👶',employment:'💼'};
+  const brokenLoop=d.escalations.broken_loop||0;
+  const safety=d.escalations.safety_critical||0;
+  const matchPct=d.total_people?Math.round(d.people_matched/d.total_people*100):0;
+  const svcBars=Object.entries(d.closure_by_service||{}).map(([s,v])=>{
+    const pct=Math.round((v.closure_rate||0)*100);
+    const barColor=pct>=80?'#1B7A7E':pct>=65?'#E8A04C':'#D9735A';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+      <span style="width:96px;font-size:13px;font-weight:600;color:#0F3A3D;text-transform:capitalize;">${s}</span>
+      <div style="flex:1;background:#E9F5F4;border-radius:6px;height:8px;overflow:hidden;">
+        <div style="width:${pct}%;background:${barColor};border-radius:6px;height:8px;transition:width .6s ease;"></div>
+      </div>
+      <span style="font-size:12.5px;font-weight:700;color:${barColor};width:34px;text-align:right;">${pct}%</span>
+      <span style="font-size:12px;color:rgba(20,52,47,.5);">${v.assigned} assigned</span>
+    </div>`;
+  }).join('');
+  document.getElementById('ong-kpis').innerHTML=`
+    <div class="kpi-grid">
+      <div class="kpi-box"><b>${d.people_matched}<span style="font-size:13px;font-weight:600;color:rgba(20,52,47,.5);"> / ${d.total_people}</span></b><small>people helped</small></div>
+      <div class="kpi-box"><b>${Math.round(d.overall_loop_closure*100)}%</b><small>help confirmed</small></div>
+      <div class="kpi-box"><b style="color:${brokenLoop>0?'#D9735A':'#1B7A7E'};">${brokenLoop}</b><small>didn't get help</small></div>
+      <div class="kpi-box"><b style="color:${safety>0?'#D9735A':'#1B7A7E'};">${safety}</b><small>safety alerts</small></div>
+    </div>
+    <div style="margin-top:20px;">
+      <span class="zen-sublabel">Confirmed help by service</span>
+      <div style="margin-top:10px;">${svcBars}</div>
+    </div>`;
   const fc=await get('/api/forecast');
   if(!omap){omap=L.map('ongmap').setView([25.6866,-100.3161],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(omap);}
   const colr={high:'#D9735A',mid:'#E8A04C',ok:'#1B7A7E'};
