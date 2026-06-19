@@ -937,9 +937,10 @@ function renderTracker(){
       <div style="font-size:14px;font-weight:700;color:#0F3A3D;margin-bottom:6px;">Still not getting help?</div>
       <div style="font-size:13px;color:rgba(20,52,47,.7);margin-bottom:14px;">Leave your phone or email and a caseworker will personally follow up with you.</div>
       <div id="esc-form">
-        <input id="esc-phone" type="tel" class="zen-input" placeholder="Phone number (optional)" style="margin-bottom:10px;background:#fff;">
-        <input id="esc-email" type="email" class="zen-input" placeholder="Email address (optional)" style="margin-bottom:10px;background:#fff;">
-        <textarea id="esc-msg" class="zen-input" placeholder="Describe what happened or what you still need (optional)" rows="3" style="margin-bottom:14px;background:#fff;resize:vertical;font-family:inherit;font-size:14px;line-height:1.5;"></textarea>
+        <div style="font-size:12px;color:rgba(20,52,47,.55);margin-bottom:8px;">At least one contact method is required.</div>
+        <input id="esc-phone" type="tel" class="zen-input" placeholder="Phone number" style="margin-bottom:10px;background:#fff;">
+        <input id="esc-email" type="email" class="zen-input" placeholder="Email address" style="margin-bottom:10px;background:#fff;">
+        <textarea id="esc-msg" class="zen-input" placeholder="Describe what happened or what you still need (optional)" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" style="margin-bottom:14px;background:#fff;resize:none;overflow:hidden;font-family:inherit;font-size:14px;line-height:1.5;"></textarea>
         <button class="zen-btn primary" onclick="escalateToCW()">Request caseworker support</button>
         <div id="esc-out" style="font-size:12px;margin-top:8px;"></div>
       </div>
