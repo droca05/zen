@@ -37,6 +37,7 @@ from engine.demand_forecast import forecast_next_week, top_shortfalls
 from engine.text_tools import plain_for
 from engine.followups import questions_for, interpret
 from engine import caseworker as cw
+from db import get_sb
 
 # Needs treated as time-critical emergencies (real-time heuristic path).
 EMERGENCY_NEEDS = {"food", "housing"}
@@ -47,26 +48,37 @@ DATA = os.path.join(HERE, "data", "resources.json")
 app = FastAPI(title="Zen — Benefits Navigator API", version="1.0")
 
 
-# ── load resources from the scraped JSON, adapt to engine dataclass ───────────
-def load_resources() -> list[Resource]:
+@app.on_event("startup")
+async def startup():
+    sb = get_sb()
+    if sb:
+        count = sb.table("resources").select("resource_id", count="exact").execute().count
+        print(f"[zen] ✓ Supabase connected — {count} resources in DB")
+    else:
+        print("[zen] ⚠  Supabase NOT configured — using local JSON files")
+
+
+# ── load resources: Supabase when configured, local JSON as fallback ──────────
+def _raw_resources() -> list[dict]:
+    sb = get_sb()
+    if sb:
+        return sb.table("resources").select("*").execute().data
     with open(DATA) as f:
-        blob = json.load(f)
-    out = []
-    for r in blob["resources"]:
-        out.append(Resource(
-            resource_id=r["resource_id"], name=r["name"],
-            service_type=r["service_type"], zip_zone=r["zip_zone"],
-            capacity=r["capacity"], max_income=r.get("max_income", 0),
-            min_household_size=r.get("min_household_size", 0),
-            hours=r.get("hours", ""), last_verified_days_ago=r.get("last_verified_days_ago", 0),
-        ))
-    return out
+        return json.load(f)["resources"]
+
+
+def load_resources() -> list[Resource]:
+    return [Resource(
+        resource_id=r["resource_id"], name=r["name"],
+        service_type=r["service_type"], zip_zone=r.get("zip_zone", 0),
+        capacity=r.get("capacity", 0), max_income=r.get("max_income", 0),
+        min_household_size=r.get("min_household_size", 0),
+        hours=r.get("hours", ""), last_verified_days_ago=r.get("last_verified_days_ago", 0),
+    ) for r in _raw_resources()]
 
 
 def resource_meta() -> dict[str, dict]:
-    with open(DATA) as f:
-        blob = json.load(f)
-    return {r["resource_id"]: r for r in blob["resources"]}
+    return {r["resource_id"]: r for r in _raw_resources()}
 
 
 CITATIONS = {
@@ -324,30 +336,47 @@ def api_cw_resolve(req: ResolveReq):
 @app.get("/api/ong/resources")
 def api_ong_list():
     """List current resources an ONG could see/manage."""
-    with open(DATA) as f:
-        blob = json.load(f)
-    return {"count": blob["count"], "resources": blob["resources"]}
+    rows = _raw_resources()
+    return {"count": len(rows), "resources": rows}
 
 
 @app.post("/api/ong/register")
 def api_ong_register(req: ONGResourceReq):
-    """
-    ONG registers a new program or updates capacity. Writes to the JSON so it
-    enters the MILP immediately. (Diego swaps the JSON for a real DB; only this
-    function and load_resources change.)
-    """
+    """ONG registers a new program or updates capacity."""
+    sb = get_sb()
+    if sb:
+        existing_rows = (sb.table("resources").select("*")
+                         .ilike("name", req.name).eq("zip_zone", req.zip_zone)
+                         .execute().data)
+        if existing_rows:
+            rec = existing_rows[0]
+            sb.table("resources").update({
+                "capacity": req.capacity, "hours": req.hours, "last_verified_days_ago": 0,
+            }).eq("resource_id", rec["resource_id"]).execute()
+            rec.update({"capacity": req.capacity, "hours": req.hours, "last_verified_days_ago": 0})
+            return {"action": "updated", "resource": rec,
+                    "message": f"'{req.name}' updated. Live in matching immediately."}
+        all_ids = sb.table("resources").select("resource_id").execute().data
+        new_id = f"R{len(all_ids):04d}"
+        rec = {
+            "resource_id": new_id, "name": req.name, "service_type": req.service_type,
+            "address": req.address, "phone": req.phone, "url": "",
+            "hours": req.hours, "zip_zone": req.zip_zone, "capacity": req.capacity,
+            "max_income": req.max_income, "min_household_size": req.min_household_size,
+            "last_verified_days_ago": 0,
+        }
+        sb.table("resources").insert(rec).execute()
+        return {"action": "registered", "resource": rec,
+                "message": f"'{req.name}' registered. Live in matching immediately."}
+    # JSON fallback
     with open(DATA) as f:
         blob = json.load(f)
-    # update if a program with same name+zone exists, else create
     existing = next((r for r in blob["resources"]
                      if r["name"].lower() == req.name.lower()
                      and r["zip_zone"] == req.zip_zone), None)
     if existing:
-        existing["capacity"] = req.capacity
-        existing["hours"] = req.hours
-        existing["last_verified_days_ago"] = 0
-        action = "updated"
-        rec = existing
+        existing.update({"capacity": req.capacity, "hours": req.hours, "last_verified_days_ago": 0})
+        action, rec = "updated", existing
     else:
         new_id = f"R{len(blob['resources']):04d}"
         rec = {
@@ -489,6 +518,12 @@ CASES = os.path.join(HERE, "data", "cases.json")
 
 
 def _load_cases() -> dict:
+    """Returns {tracking: case_dict}. Supabase when configured, JSON fallback."""
+    sb = get_sb()
+    if sb:
+        rows = sb.table("cases").select("*").execute().data
+        return {r["tracking"]: {k: v for k, v in r.items() if k != "tracking"}
+                for r in rows}
     if os.path.exists(CASES):
         try:
             return json.load(open(CASES, encoding="utf-8"))
@@ -510,13 +545,20 @@ class CaseSaveReq(BaseModel):
 
 @app.post("/api/case/save")
 def api_case_save(req: CaseSaveReq):
-    cases = _load_cases()
-    cases[req.tracking] = {
-        "plan": req.plan, "email": req.email, "ong_consent": req.ong_consent,
+    sb = get_sb()
+    row = {
+        "tracking": req.tracking,
+        "plan": req.plan,
+        "email": req.email,
+        "ong_consent": req.ong_consent,
         "saved_at": datetime.now().isoformat(),
     }
-    _save_cases(cases)
-    # If an email was given, this is where reminders would be sent.
+    if sb:
+        sb.table("cases").upsert(row).execute()
+    else:
+        cases = _load_cases()
+        cases[req.tracking] = {k: v for k, v in row.items() if k != "tracking"}
+        _save_cases(cases)
     if req.email:
         _send_reminder_email(req.email, req.tracking)
     return {"saved": req.tracking}
@@ -542,6 +584,12 @@ def _send_reminder_email(to_addr: str, tracking: str):
 
 @app.get("/api/case/{tracking}")
 def api_case_get(tracking: str):
+    sb = get_sb()
+    if sb:
+        rows = sb.table("cases").select("*").eq("tracking", tracking).execute().data
+        if rows:
+            return {"found": True, **rows[0]}
+        return {"found": False}
     cases = _load_cases()
     if tracking in cases:
         return {"found": True, **cases[tracking]}

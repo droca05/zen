@@ -18,11 +18,23 @@ Author: Steff (Data Science + Math)
 """
 
 from __future__ import annotations
-import json, os
+import json, os, sys
 from datetime import datetime, timedelta
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = os.path.join(HERE, "data", "escalations.json")
+
+# Import the shared Supabase client (zen-3/ is added to path so db.py is found).
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+
+def _get_sb():
+    try:
+        from db import get_sb
+        return get_sb()
+    except Exception:
+        return None
 
 
 # ── vulnerability score: what pushes a case up the scarce-time queue ──────────
@@ -68,14 +80,27 @@ def _seed():
 
 
 def _load():
+    sb = _get_sb()
+    if sb:
+        rows = sb.table("escalations").select("*").execute().data
+        if not rows:
+            defaults = _seed()
+            sb.table("escalations").insert(defaults).execute()
+            return defaults
+        return rows
     if not os.path.exists(STORE):
         save(_seed())
-    with open(STORE) as f:
+    with open(STORE, encoding="utf-8") as f:
         return json.load(f)
 
 
 def save(cases):
-    with open(STORE, "w") as f:
+    sb = _get_sb()
+    if sb:
+        if cases:
+            sb.table("escalations").upsert(cases).execute()
+        return
+    with open(STORE, "w", encoding="utf-8") as f:
         json.dump(cases, f, indent=2)
 
 

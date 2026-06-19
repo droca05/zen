@@ -513,8 +513,9 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
     <div class="lc-label">Organization access</div>
     <h2>Sign in</h2>
     <p>Manage your capacity and the people Zen connects to you.</p>
-    <label>Email</label><input type="email" placeholder="you@organization.org">
-    <label>Password</label><input type="password" placeholder="••••••••">
+    <label>Email</label><input id="org-email" type="email" placeholder="org@zen.com">
+    <label>Password</label><input id="org-pwd" type="password" placeholder="••••••••">
+    <div id="org-err" style="display:none;color:#C05040;font-size:13px;font-weight:600;margin:-8px 0 12px;text-align:center;"></div>
     <button class="lc-btn" onclick="loginOrg()">Sign in</button>
     <div style="text-align:center;margin-top:16px;"><button style="border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#1B7A7E;text-decoration:underline;text-underline-offset:3px;">Forgot your password?</button></div>
   </div>
@@ -589,8 +590,9 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
     <div class="lc-label">Caseworker access</div>
     <h2>Sign in</h2>
     <p>Review the cases that need your human support.</p>
-    <label>Email</label><input type="email" placeholder="you@agency.gov">
-    <label>Password</label><input type="password" placeholder="••••••••">
+    <label>Email</label><input id="cw-email" type="email" placeholder="caseworker@zen.com">
+    <label>Password</label><input id="cw-pwd" type="password" placeholder="••••••••">
+    <div id="cw-err" style="display:none;color:#C05040;font-size:13px;font-weight:600;margin:-8px 0 12px;text-align:center;"></div>
     <button class="lc-btn" onclick="loginCw()">Sign in</button>
     <div style="text-align:center;margin-top:16px;"><button style="border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#1B7A7E;text-decoration:underline;text-underline-offset:3px;">Forgot your password?</button></div>
   </div>
@@ -1020,10 +1022,31 @@ async function confirmResolve(){
   closeResolve();loadCw();
 }
 
-function loginOrg(){document.getElementById('org-login').style.display='none';document.getElementById('org-dash').style.display='block';document.getElementById('world-org').style.flexDirection='column';document.getElementById('world-org').style.alignItems='stretch';loadOrg();}
-function logoutOrg(){document.getElementById('org-login').style.display='block';document.getElementById('org-dash').style.display='none';document.getElementById('world-org').style.flexDirection='';document.getElementById('world-org').style.alignItems='';}
-function loginCw(){document.getElementById('cw-login').style.display='none';document.getElementById('cw-dash').style.display='block';document.getElementById('world-cw').style.flexDirection='column';document.getElementById('world-cw').style.alignItems='stretch';loadCw();}
-function logoutCw(){document.getElementById('cw-login').style.display='block';document.getElementById('cw-dash').style.display='none';document.getElementById('world-cw').style.flexDirection='';document.getElementById('world-cw').style.alignItems='';}
+const DEMO_CREDS={'org@zen.com':{pwd:'zen2026',role:'org'},'caseworker@zen.com':{pwd:'zen2026',role:'caseworker'}};
+function loginOrg(){
+  const email=document.getElementById('org-email').value.trim().toLowerCase();
+  const pwd=document.getElementById('org-pwd').value;
+  const err=document.getElementById('org-err');
+  if(!email||!pwd){err.textContent='Enter your email and password.';err.style.display='block';return;}
+  const m=DEMO_CREDS[email];
+  if(!m||m.role!=='org'||m.pwd!==pwd){err.textContent='Incorrect email or password.';err.style.display='block';document.getElementById('org-pwd').value='';return;}
+  err.style.display='none';
+  document.getElementById('org-login').style.display='none';document.getElementById('org-dash').style.display='block';
+  document.getElementById('world-org').style.flexDirection='column';document.getElementById('world-org').style.alignItems='stretch';loadOrg();
+}
+function logoutOrg(){document.getElementById('org-login').style.display='block';document.getElementById('org-dash').style.display='none';document.getElementById('world-org').style.flexDirection='';document.getElementById('world-org').style.alignItems='';document.getElementById('org-email').value='';document.getElementById('org-pwd').value='';}
+function loginCw(){
+  const email=document.getElementById('cw-email').value.trim().toLowerCase();
+  const pwd=document.getElementById('cw-pwd').value;
+  const err=document.getElementById('cw-err');
+  if(!email||!pwd){err.textContent='Enter your email and password.';err.style.display='block';return;}
+  const m=DEMO_CREDS[email];
+  if(!m||m.role!=='caseworker'||m.pwd!==pwd){err.textContent='Incorrect email or password.';err.style.display='block';document.getElementById('cw-pwd').value='';return;}
+  err.style.display='none';
+  document.getElementById('cw-login').style.display='none';document.getElementById('cw-dash').style.display='block';
+  document.getElementById('world-cw').style.flexDirection='column';document.getElementById('world-cw').style.alignItems='stretch';loadCw();
+}
+function logoutCw(){document.getElementById('cw-login').style.display='block';document.getElementById('cw-dash').style.display='none';document.getElementById('world-cw').style.flexDirection='';document.getElementById('world-cw').style.alignItems='';document.getElementById('cw-email').value='';document.getElementById('cw-pwd').value='';}
 
 loadLocal();askGeo();
 document.getElementById('bottomnav').style.display='flex';
