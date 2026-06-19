@@ -768,9 +768,20 @@ async function doIntake(){
   document.getElementById('conf-tags').innerHTML=needs.map(n=>`<span style="background:#D4E9E8;border:1px solid rgba(20,52,47,.22);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#0F3A3D;">${n}</span>`).join('')+`<span style="background:#D4E9E8;border:1px solid rgba(20,52,47,.22);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#0F3A3D;">urgency: ${r.urgency}</span><span style="background:#D4E9E8;border:1px solid rgba(20,52,47,.22);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#0F3A3D;">${r.language}</span>`;
   let msg='';
   if(r.action==='ESCALATE_SAFETY'){
-    const locNote=S.coords?'Your location has been shared with the caseworker.':'Enable location so we can share it with the caseworker.';
-    msg=`<div class="zen-err" style="font-size:15px;line-height:1.6;"><b>You are not alone.</b><br>A caseworker has been notified and will reach out to you. ${locNote}<br><br>If you are in immediate danger, please call <b>911</b> or the Suicide &amp; Crisis Lifeline <b>988</b>.</div>`;
+    msg=`<div style="background:#FFF7F0;border:1.5px solid rgba(232,160,76,.5);border-radius:16px;padding:18px;font-size:14px;line-height:1.7;">
+      <div style="font-size:17px;font-weight:700;color:#0F3A3D;margin-bottom:8px;">You are not alone.</div>
+      <div style="color:rgba(20,52,47,.85);margin-bottom:14px;">Whatever you are going through right now, there are people who care and want to help. You deserve support — and it is okay to ask for it.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">📞</span><span><b>988</b> — Suicide &amp; Crisis Lifeline<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Call or text, free, 24/7</span></span></div>
+        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">💬</span><span>Text <b>HOME</b> to <b>741741</b> — Crisis Text Line<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free text support, 24/7</span></span></div>
+        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">🌐</span><span><b>1-800-662-4357</b> — SAMHSA Mental Health<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free, confidential, 24/7</span></span></div>
+      </div>
+      <div style="font-size:13px;color:rgba(20,52,47,.65);">We are also finding nearby support resources for you below.</div>
+    </div>`;
     document.getElementById('btn-confirm').style.display='none';
+    if(!r.needs.includes('healthcare')) r.needs.push('healthcare');
+    S.intake=r;
+    setTimeout(()=>doMatch(),600);
   }
   else if(r.action==='ASK_REPEAT')msg='<div class="zen-warn">We couldn\'t understand well. Tap "Let me correct it" — after two tries we connect you with a person.</div>';
   else if(r.action==='CONFIRM_TRANSCRIPT')msg='<div class="zen-warn">Please confirm we understood you before continuing.</div>';
@@ -810,7 +821,16 @@ async function doMatch(){
   saveLocal();renderPlan();renderSaveBox();
 }
 function renderPlan(){
-  document.getElementById('plan-list').innerHTML=S.plan.map((p,idx)=>`
+  const crisisCard=(S.intake&&S.intake.safety_flag)?`<div style="background:#FFF7F0;border:1.5px solid rgba(232,160,76,.45);border-radius:16px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:13px;font-weight:700;color:#0F3A3D;margin-bottom:10px;">Crisis support — available right now</div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
+      <div>📞 <b>988</b> — Suicide &amp; Crisis Lifeline (call or text, 24/7, free)</div>
+      <div>💬 Text <b>HOME</b> to <b>741741</b> — Crisis Text Line (24/7, free)</div>
+      <div>☎️ <b>1-800-662-4357</b> — SAMHSA Mental Health Helpline</div>
+      <div>🚨 <b>911</b> — If you or someone is in immediate danger</div>
+    </div>
+  </div>`:'';
+  document.getElementById('plan-list').innerHTML=crisisCard+S.plan.map((p,idx)=>`
     <div class="res-card">
       <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:12px;">
         <span class="res-rank">${p.rank}</span>
