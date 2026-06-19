@@ -135,6 +135,31 @@ NEXT_STEPS = {
 }
 
 
+def _build_steps(service: str, m: dict) -> list[str]:
+    """Generate concrete steps injecting real name, address, hours, phone."""
+    template = NEXT_STEPS.get(service, NEXT_STEPS["food"])
+    steps = list(template["steps"])
+    name = m.get("name", "them")
+    addr = m.get("address", "")
+    hours = m.get("hours", "")
+    phone = m.get("phone", "")
+    has_hours = hours and hours not in ("Call for hours", "")
+
+    # Replace generic first step with real location
+    if addr and has_hours:
+        steps[0] = f"Go to {name} at {addr} — open {hours}"
+    elif addr:
+        steps[0] = f"Go to {name} at {addr}"
+    elif has_hours:
+        steps[0] = f"Contact {name} — open {hours}"
+
+    # Insert phone step if available
+    if phone:
+        steps.insert(1, f"Call ahead to confirm availability: {phone}")
+
+    return steps
+
+
 # ── request models ────────────────────────────────────────────────────────────
 class IntakeReq(BaseModel):
     transcript: str
@@ -234,7 +259,7 @@ def api_match(req: MatchReq):
             "readability": pl["readability"],     # the metric, so it's not a vague claim
             "stale": m.get("last_verified_days_ago", 0) > 45,
             "zone": m.get("zip_zone", 0),
-            "steps": ns["steps"],
+            "steps": _build_steps(a.service_type, m),
             "bring": ns["bring"],
             "start_here": k == 0,
         })
