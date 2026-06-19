@@ -450,6 +450,7 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
 
       <div id="track-num"></div>
       <div id="track-list"><div class="spinner">No plan yet — start in "My situation".</div></div>
+      <div id="track-escalate"></div>
     </div>
 
     <!-- ─ TAB: NEAR ME ─ -->
@@ -837,20 +838,9 @@ function toggleWhy(i){document.getElementById('why'+i).classList.toggle('open');
 function renderSaveBox(){
   document.getElementById('save-box').innerHTML=`
     <div class="card-white" style="margin-top:20px;">
-      <button onclick="togglePartnerConsent()" style="display:flex;align-items:flex-start;gap:11px;border:none;background:none;cursor:pointer;color:#0F3A3D;text-align:left;font-family:'Plus Jakarta Sans';font-size:13px;line-height:1.5;padding:0;margin-bottom:18px;">
-        <span id="partner-box" style="flex:none;width:20px;height:20px;border-radius:6px;border:2px solid rgba(20,52,47,.35);background:transparent;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;"></span>
-        <span style="opacity:.88;"><b>OPTIONAL:</b> Allow a partner organization to contact me to help.</span>
-      </button>
       <button class="zen-btn primary" onclick="saveCase()">Save my case</button>
       <div id="save-out"></div>
     </div>`;
-}
-let partnerConsent=false;
-function togglePartnerConsent(){
-  partnerConsent=!partnerConsent;
-  const b=document.getElementById('partner-box');
-  if(partnerConsent){b.style.background='#E8A04C';b.style.borderColor='#E8A04C';b.innerHTML='<svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M5 12l4 4 10-10" stroke="#0B3D37" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg>';}
-  else{b.style.background='transparent';b.style.borderColor='rgba(20,52,47,.35)';b.innerHTML='';}
 }
 async function saveCase(){
   S.email=(document.getElementById('notify-email')||{}).value||'';S.ongConsent=partnerConsent;
@@ -859,10 +849,10 @@ async function saveCase(){
   await post('/api/case/save',{tracking:S.tracking,plan:S.plan,email:S.email,ong_consent:S.ongConsent});
   if(btn){btn.style.display='none';}
   document.getElementById('save-out').innerHTML=`
-    <div style="background:#0B3D37;border-radius:16px;padding:20px;text-align:center;margin-top:8px;">
-      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:#8FD8C6;margin-bottom:8px;">Case saved</div>
-      <div style="font-family:'Fraunces',serif;font-weight:600;font-size:28px;letter-spacing:1px;color:#fff;margin-bottom:10px;">${S.tracking}</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.7);">Write this down — use it in "My progress" to check your plan anytime.</div>
+    <div style="background:#F4F1EA;border:1.5px solid rgba(20,52,47,.18);border-radius:16px;padding:20px;text-align:center;margin-top:12px;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:rgba(20,52,47,.55);margin-bottom:8px;">Case saved</div>
+      <div style="font-family:'Fraunces',serif;font-weight:600;font-size:28px;letter-spacing:1px;color:#E8A04C;margin-bottom:10px;">${S.tracking}</div>
+      <div style="font-size:13px;color:rgba(20,52,47,.7);">Write this down — use it in "My progress" to check your plan anytime.</div>
     </div>`;
 }
 function advancePlan(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();showTab('progress');}
@@ -899,6 +889,28 @@ function renderTracker(){
       ${p.phase<3?`<button class="zen-btn ghost sm" onclick="advanceTrack('${p.resource_id}')">Mark as "${PHASES[p.phase+1]}"</button>`:'<div class="zen-ok">✓ The loop closed — you received help</div>'}
     </div>`;
   }).join('');
+  const anyOpen=S.plan.some(p=>p.phase<3);
+  document.getElementById('track-escalate').innerHTML=anyOpen?`
+    <div class="card-white" style="margin-top:6px;border:1.5px solid rgba(217,115,90,.35);">
+      <div style="font-size:14px;font-weight:700;color:#0F3A3D;margin-bottom:6px;">Still not getting help?</div>
+      <div style="font-size:13px;color:rgba(20,52,47,.7);margin-bottom:14px;">Leave your phone or email and a caseworker will personally follow up with you.</div>
+      <div id="esc-form">
+        <input id="esc-phone" type="tel" class="zen-input" placeholder="Phone number (optional)" style="margin-bottom:10px;background:#fff;">
+        <input id="esc-email" type="email" class="zen-input" placeholder="Email address (optional)" style="margin-bottom:14px;background:#fff;">
+        <button class="zen-btn primary" onclick="escalateToCW()">Request caseworker support</button>
+        <div id="esc-out" style="font-size:12px;margin-top:8px;"></div>
+      </div>
+    </div>`:'';
+}
+async function escalateToCW(){
+  const phone=(document.getElementById('esc-phone')||{}).value||'';
+  const email=(document.getElementById('esc-email')||{}).value||'';
+  if(!phone&&!email){document.getElementById('esc-out').innerHTML='<span style="color:#D9735A;">Please enter at least a phone number or email.</span>';return;}
+  const rid=(S.plan.find(p=>p.phase<3)||{}).resource_id||'unknown';
+  const btn=document.querySelector('[onclick="escalateToCW()"]');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  await post('/api/checkin',{user_id:S.tracking||'anon',resource_id:rid,received_help:false,contact_phone:phone,contact_email:email});
+  document.getElementById('esc-form').innerHTML=`<div class="zen-ok">✓ Request sent. A caseworker will contact you at ${phone||email}.</div>`;
 }
 function advanceTrack(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();renderTracker();}
 function dismissPlan(rid){if(!confirm('Remove this program from your list?'))return;S.plan=S.plan.filter(x=>x.resource_id!==rid);saveLocal();renderTracker();if(S.tracking)post('/api/case/save',{tracking:S.tracking,plan:S.plan,email:S.email,ong_consent:S.ongConsent});}
@@ -1026,7 +1038,7 @@ async function loadCw(){
         <span class="cw-badge" style="background:${CW_COLOR(c.vulnerability)};"><span class="cb1">${i===0?'NOW':'#'+(i+1)}</span><span class="cb2">p${c.vulnerability}</span></span>
         <div class="cw-main">
           <h4>${c.summary}${c.has_children?' · has children':''}</h4>
-          <div class="meta">case ${c.id} · ${c.user_hash} · ${c.urgency} · ${c.language}</div>
+          <div class="meta">case ${c.id} · ${c.user_hash} · ${c.urgency} · ${c.language}${c.contact_info?` · <b>${c.contact_info}</b>`:''}</div>
           <span class="cw-tag" style="background:${CW_TAGBG(c.reason)};color:${CW_TAGFG(c.reason)};">${c.reason_label}</span>
         </div>
         <button onclick="openResolve('${c.id}')" style="flex:none;align-self:center;border:1.5px solid rgba(20,52,47,.45);background:#ffffff;color:#0F3A3D;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:14px;padding:10px 16px;border-radius:11px;display:inline-flex;align-items:center;gap:7px;">
