@@ -40,7 +40,9 @@ def seed():
             "last_verified_days_ago": r.get("last_verified_days_ago", 0),
         })
 
-    sb.table("resources").upsert(rows).execute()
+    sb.table("resources").delete().neq("resource_id", "").execute()
+    print(f"  Cleared old records.")
+    sb.table("resources").insert(rows).execute()
     print(f"✓ Seeded {len(rows)} resources into Supabase.")
 
 

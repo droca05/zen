@@ -403,7 +403,7 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
       <p style="font-size:16px;line-height:1.6;color:rgba(20,52,47,.82);margin-bottom:22px;">To find exactly what you qualify for.</p>
       <div id="followup-list"></div>
       <div id="elig-signals"></div>
-      <button class="zen-btn primary" style="margin-top:16px;" onclick="doMatch()">See what I qualify for</button>
+      <button id="match-btn" class="zen-btn primary" style="margin-top:16px;" onclick="doMatch()" disabled>See what I qualify for</button>
       <button class="zen-btn ghost" style="margin-top:12px;" onclick="goScreen('understand')">Back</button>
     </div>
 
@@ -773,16 +773,21 @@ async function doIntake(){
 function goFollowups(){
   const fu=(S.intake&&S.intake.followups)||[];
   if(!fu.length){doMatch();return;}
+  S.answers={};S._totalQ=fu.length;
   document.getElementById('followup-list').innerHTML=fu.map(q=>`
     <div style="margin-bottom:16px;">
       <span class="zen-label">${q.q}</span>
       <div class="chip-group" data-qid="${q.id}" style="margin-bottom:4px;">${q.options.map(o=>`<button class="need-btn" onclick="pickFollowup(this,'${q.id}','${o.replace(/'/g,"\\'")}')">${o}</button>`).join('')}</div>
       <div style="font-size:11px;color:rgba(20,52,47,.55);">${q.why}</div>
     </div>`).join('');
-  document.getElementById('elig-signals').innerHTML='';S.answers={};goScreen('followups');
+  document.getElementById('elig-signals').innerHTML='';
+  document.getElementById('match-btn').disabled=true;
+  goScreen('followups');
 }
 function pickFollowup(el,qid,val){
   el.parentElement.querySelectorAll('.need-btn').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');S.answers[qid]=val;
+  const answered=Object.keys(S.answers).length;
+  document.getElementById('match-btn').disabled=answered<(S._totalQ||1);
   post('/api/followups/interpret',{answers:S.answers}).then(r=>{S.refined=r.fields||{};document.getElementById('elig-signals').innerHTML=r.signals.map(s=>`<div class="zen-ok">${s}</div>`).join('');});
 }
 
