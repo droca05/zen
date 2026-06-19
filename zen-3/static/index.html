@@ -448,9 +448,11 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
         <div id="recover-out" style="font-size:12px;margin-top:8px;"></div>
       </div>
 
-      <div id="track-num"></div>
-      <div id="track-list"><div class="spinner">No plan yet — start in "My situation".</div></div>
-      <div id="track-escalate"></div>
+      <div id="plan-section" style="display:none;">
+        <div id="track-num"></div>
+        <div id="track-list"></div>
+        <div id="track-escalate"></div>
+      </div>
     </div>
 
     <!-- ─ TAB: NEAR ME ─ -->
@@ -691,7 +693,7 @@ function showTab(t,skipScroll){
   document.getElementById('tab-progress-content').classList.remove('active');
   document.getElementById('tab-map-content').classList.remove('active');
   if(t==='situation'){const el=document.getElementById('scr-'+S.screen);if(el)el.classList.add('active');}
-  else if(t==='progress'){document.getElementById('tab-progress-content').classList.add('active');renderTracker();}
+  else if(t==='progress'){document.getElementById('tab-progress-content').classList.add('active');}
   else if(t==='nearme'){document.getElementById('tab-map-content').classList.add('active');setTimeout(renderMap,150);}
   if(!skipScroll)window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -859,7 +861,7 @@ async function saveCase(){
       <div style="font-size:13px;color:rgba(20,52,47,.7);">Write this down — use it in "My progress" to check your plan anytime.</div>
     </div>`;
 }
-function advancePlan(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();showTab('progress');}
+function advancePlan(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();showTab('progress');renderTracker();}
 
 async function saveNotifyEmail(){
   const email=(document.getElementById('notify-email')||{}).value||'';
@@ -879,11 +881,7 @@ async function recoverCase(){
   else document.getElementById('recover-out').innerHTML='<span style="color:#D9735A;">No case found with that number.</span>';
 }
 function renderTracker(){
-  if(!S.tracking){
-    document.getElementById('track-list').innerHTML='<div style="text-align:center;padding:24px 0;font-size:14px;color:rgba(20,52,47,.55);">Enter your case number above to see your plan.</div>';
-    document.getElementById('track-escalate').innerHTML='';
-    return;
-  }
+  document.getElementById('plan-section').style.display='block';
   if(!S.plan.length){document.getElementById('track-num').innerHTML='';document.getElementById('track-list').innerHTML='<div class="spinner">No plan yet — start in "My situation".</div>';return;}
   document.getElementById('track-num').innerHTML=`<div class="card-white" style="margin-bottom:18px;"><div style="font-size:13px;font-weight:600;color:#0F3A3D;margin-bottom:10px;">Get notified when your case is updated</div><div style="font-size:13px;color:rgba(20,52,47,.7);margin-bottom:12px;">Enter your email and we'll send you updates on your plan. Optional — you can always check with your case number instead.</div><input id="notify-email" type="email" class="zen-input" placeholder="your@email.com (optional)" style="margin-bottom:10px;background:#fff;"><button class="zen-btn primary sm" onclick="saveNotifyEmail()">Save email</button><div id="notify-out" style="font-size:12px;margin-top:8px;"></div></div>`;
   document.getElementById('track-list').innerHTML=S.plan.map(p=>{
