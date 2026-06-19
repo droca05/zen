@@ -776,12 +776,12 @@ async function doIntake(){
         <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">💬</span><span>Text <b>HOME</b> to <b>741741</b> — Crisis Text Line<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free text support, 24/7</span></span></div>
         <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">🌐</span><span><b>1-800-662-4357</b> — SAMHSA Mental Health<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free, confidential, 24/7</span></span></div>
       </div>
-      <div style="font-size:13px;color:rgba(20,52,47,.65);">We are also finding nearby support resources for you below.</div>
+      <div style="font-size:13px;color:rgba(20,52,47,.65);margin-bottom:14px;">We are also finding nearby support resources for you.</div>
+      <button class="zen-btn primary" style="width:100%;" onclick="doMatch()">See nearby resources →</button>
     </div>`;
     document.getElementById('btn-confirm').style.display='none';
     if(!r.needs.includes('healthcare')) r.needs.push('healthcare');
     S.intake=r;
-    setTimeout(()=>doMatch(),600);
   }
   else if(r.action==='ASK_REPEAT')msg='<div class="zen-warn">We couldn\'t understand well. Tap "Let me correct it" — after two tries we connect you with a person.</div>';
   else if(r.action==='CONFIRM_TRANSCRIPT')msg='<div class="zen-warn">Please confirm we understood you before continuing.</div>';
