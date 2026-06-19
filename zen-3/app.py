@@ -451,29 +451,18 @@ def _gemini_key() -> Optional[str]:
 
 def _rule_based_answer(q: str, plan: list, language: str = "English") -> str:
     t = (q or "").lower()
-    spanish = language == "Spanish"
     first = next((p for p in plan if p.get("start_here")), (plan[0] if plan else None))
-    if any(w in t for w in ["first", "start", "primero", "empiezo"]):
-        if first:
-            return (f"Empieza con {first['name']}. {first['steps'][0]}." if spanish
-                    else f"Start with {first['name']}. {first['steps'][0]}.")
-        return "Cuéntame tu situación primero y te digo el primer paso." if spanish else "Share your situation first and I'll tell you the first step."
-    if any(w in t for w in ["document", "bring", "need", "papel", "llevar", "traer"]):
-        if first:
-            return (f"Para {first['name']} lleva: {first['bring']}." if spanish
-                    else f"For {first['name']}, bring: {first['bring']}.")
-        return "Cuéntame tu situación y te digo qué llevar." if spanish else "Share your situation first and I'll list what to bring."
-    if any(w in t for w in ["safe", "privacy", "immigration", "privad", "seguro", "inmigraci"]):
-        return ("Tu información es privada. No compartimos tus datos con inmigración ni con la policía."
-                if spanish else
-                "Your information is private. We never share your data with immigration or police.")
-    if any(w in t for w in ["closed", "full", "wrong", "cerrado", "lleno", "llena"]):
-        return ("Si el lugar está cerrado o lleno, márcalo como 'no recibí ayuda' en Mi progreso — un trabajador social te reasigna."
-                if spanish else
-                "If a place is closed or full, mark it as not received in My progress — a caseworker reassigns you.")
-    return ("Hola, estoy aquí para ayudarte. Puedo explicarte tu primer paso, qué documentos llevar, o qué hacer si un lugar está cerrado. ¿Qué necesitas?"
-            if spanish else
-            "Hi, I'm here to help. Ask me about your first step, what to bring, or what to do if a place is closed.")
+    if any(w in t for w in ["first", "start"]):
+        return (f"Start with {first['name']}. {first['steps'][0]}."
+                if first else "Share your situation first and I'll tell you the first step.")
+    if any(w in t for w in ["document", "bring", "need", "carry"]):
+        return (f"For {first['name']}, bring: {first['bring']}."
+                if first else "Share your situation first and I'll list what to bring.")
+    if any(w in t for w in ["safe", "privacy", "immigration"]):
+        return "Your information is private. We never share your data with immigration or police."
+    if any(w in t for w in ["closed", "full", "wrong"]):
+        return "If a place is closed or full, mark it as not received in My progress — a caseworker will reassign you."
+    return "Hi, I'm here to help. Ask me about your first step, what to bring, or what to do if a place is closed."
 
 
 class ChatReq(BaseModel):
@@ -493,14 +482,13 @@ def api_chat(req: ChatReq):
                 f"Steps: {'; '.join(p.get('steps', []))}. Bring: {p.get('bring','')}."
                 for p in req.plan
             ) or "No plan yet."
-            lang = req.language if req.language in ("Spanish", "English") else "English"
             sys_inst = (
-                f"You are Zen's helper for people in crisis seeking public benefits. "
-                f"The user's language is {lang}. You MUST reply ONLY in {lang}, regardless of what language this instruction is written in. "
-                f"Answer in plain, warm, short language (max 3 sentences), at a 6th-grade reading level. "
-                f"Use ONLY the resources in the user's plan below. Never invent programs, phone numbers, or eligibility. "
-                f"If the user greets you or sends a short message, respond warmly and ask how you can help with their plan. "
-                f"\n\nUSER'S PLAN:\n" + plan_txt
+                "You are Zen's helper for people in crisis seeking public benefits. "
+                "Reply in English only. Be warm, clear, and brief — maximum 3 sentences. "
+                "Use a 6th-grade reading level. "
+                "Use ONLY the resources listed in the user's plan below — never invent programs, addresses, or phone numbers. "
+                "If the user greets you or sends a short message, reply warmly and ask what you can help them with. "
+                "\n\nUSER'S PLAN:\n" + plan_txt
             )
             url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
                    f"{GEMINI_MODEL}:generateContent?key={key}")
