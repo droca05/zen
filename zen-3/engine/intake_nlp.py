@@ -55,22 +55,37 @@ URGENCY_KEYWORDS = {
 }
 
 # Safety-critical keywords → MUST route to a human, AI does NOT proceed.
+# Single words that alone are high-risk signals.
+SAFETY_WORDS = {
+    "suicide", "suicidal", "suicidio", "suicidarme",
+}
+
+# Phrases — substring match after lowercasing.
 SAFETY_KEYWORDS = [
-    # English — self-harm / suicide
-    "suicide", "kill myself", "end my life", "take my life", "want to die",
-    "don't want to live", "no reason to live", "hurt myself", "harm myself",
-    "self harm", "self-harm", "cut myself",
+    # English — self-harm / suicide (many phrasings of the same intent)
+    "kill myself", "kill me", "want to kill", "wanna kill", "gonna kill",
+    "end my life", "end it all", "end everything", "take my life",
+    "want to die", "wanna die", "going to die", "wish i were dead",
+    "wish i was dead", "better off dead", "don't want to be here",
+    "don't want to live", "cant go on", "can't go on", "no reason to live",
+    "not worth living", "life is not worth", "hurt myself", "harm myself",
+    "self harm", "self-harm", "cut myself", "cutting myself",
     # English — violence / danger
     "abuse", "hit me", "violence", "danger", "weapon", "child alone", "domestic",
     "threaten", "threatened", "beat me", "rape", "assault",
     # Spanish — self-harm / suicide
-    "suicidio", "matarme", "quitarme la vida", "acabar con mi vida",
-    "quiero morir", "no quiero vivir", "hacerme daño", "lastimarme",
-    "cortarme",
+    "matarme", "quiero matarme", "hacerme daño", "lastimarme", "cortarme",
+    "quitarme la vida", "acabar con mi vida", "acabar con todo",
+    "quiero morir", "quisiera morir", "no quiero vivir", "no vale la pena vivir",
+    "mejor estar muerto", "no puedo mas", "no puedo seguir",
     # Spanish — violence / danger
     "lastimar", "abuso", "golpea", "golpean", "violencia",
     "peligro", "arma", "amenaza", "violar", "agresion",
 ]
+
+# Word-pair combinations: if BOTH a harm verb and a target word appear → flag.
+_HARM_VERBS = {"kill", "hurt", "harm", "end", "die", "dying", "dead"}
+_SELF_TARGETS = {"me", "myself", "i", "my life", "everything"}
 
 LANG_HINTS = {
     "Spanish": ["comida", "renta", "trabajo", "hijos", "salud", "ayuda", "necesito", "tengo"],
@@ -102,8 +117,12 @@ def extract(transcript: str) -> IntakeResult:
     text = transcript.lower()
 
     # 1. safety screen FIRST — overrides everything
+    # Three independent detection paths — any one is enough to flag:
     safety_hits = [k for k in SAFETY_KEYWORDS if k in text]
-    safety_flag = len(safety_hits) > 0
+    single_word_hit = any(w in re.split(r'\W+', text) for w in SAFETY_WORDS)
+    words = set(re.split(r'\W+', text))
+    combo_hit = bool(_HARM_VERBS & words) and bool(_SELF_TARGETS & words)
+    safety_flag = bool(safety_hits) or single_word_hit or combo_hit
 
     # 2. needs
     matched: dict[str, list[str]] = {}
