@@ -767,7 +767,7 @@ async function doIntake(){
   let msg='';
   if(r.action==='ESCALATE_SAFETY'){
     const locNote=S.coords?'Your location has been shared with the caseworker.':'Enable location so we can share it with the caseworker.';
-    msg=`<div class="zen-err" style="font-size:15px;line-height:1.6;"><b>You are not alone.</b><br>A caseworker has been notified and will reach out to you. ${locNote}<br><br>If you are in immediate danger, please call <b>911</b> or the crisis line <b>800-290-0024</b>.</div>`;
+    msg=`<div class="zen-err" style="font-size:15px;line-height:1.6;"><b>You are not alone.</b><br>A caseworker has been notified and will reach out to you. ${locNote}<br><br>If you are in immediate danger, please call <b>911</b> or the Suicide &amp; Crisis Lifeline <b>988</b>.</div>`;
     document.getElementById('btn-confirm').style.display='none';
   }
   else if(r.action==='ASK_REPEAT')msg='<div class="zen-warn">We couldn\'t understand well. Tap "Let me correct it" — after two tries we connect you with a person.</div>';
