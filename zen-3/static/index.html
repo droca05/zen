@@ -772,9 +772,9 @@ async function doIntake(){
       <div style="font-size:17px;font-weight:700;color:#0F3A3D;margin-bottom:8px;">You are not alone.</div>
       <div style="color:rgba(20,52,47,.85);margin-bottom:14px;">Whatever you are going through right now, there are people who care and want to help. You deserve support — and it is okay to ask for it.</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
-        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">📞</span><span><b>988</b> — Suicide &amp; Crisis Lifeline<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Call or text, free, 24/7</span></span></div>
-        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">💬</span><span>Text <b>HOME</b> to <b>741741</b> — Crisis Text Line<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free text support, 24/7</span></span></div>
-        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">🌐</span><span><b>1-800-662-4357</b> — SAMHSA Mental Health<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free, confidential, 24/7</span></span></div>
+        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;"><span style="flex:none;width:36px;height:36px;background:#D4E9E8;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#0F3A3D;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M6.6 10.8a15.6 15.6 0 006.6 6.6l2.2-2.2a1 1 0 011.1-.2c1.2.4 2.5.6 3.8.6a1 1 0 011 1V20a1 1 0 01-1 1C10.6 21 3 13.4 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.3.2 2.6.6 3.8a1 1 0 01-.2 1.1L6.6 10.8z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>988</b> — Suicide &amp; Crisis Lifeline<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Call or text, free, 24/7</span></span></div>
+        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;"><span style="flex:none;width:36px;height:36px;background:#D4E9E8;border-radius:10px;display:flex;align-items:center;justify-content:color:#0F3A3D;justify-content:center;color:#0F3A3D;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Text <b>HOME</b> to <b>741741</b> — Crisis Text Line<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free text support, 24/7</span></span></div>
+        <div style="background:#fff;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;"><span style="flex:none;width:36px;height:36px;background:#D4E9E8;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#0F3A3D;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 000-7.6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>1-800-662-4357</b> — SAMHSA Mental Health<br><span style="font-size:12px;color:rgba(20,52,47,.6);">Free, confidential, 24/7</span></span></div>
       </div>
       <div style="font-size:13px;color:rgba(20,52,47,.65);margin-bottom:14px;">We are also finding nearby support resources for you.</div>
       <button class="zen-btn primary" style="width:100%;" onclick="doMatch()">See nearby resources →</button>
@@ -817,17 +817,17 @@ async function doMatch(){
   if(!r.plan||!r.plan.length){document.getElementById('plan-list').innerHTML='<div class="spinner">No matches in current capacity — escalating to a caseworker.</div>';return;}
   S.tracking=r.tracking_number;S.plan=r.plan.map(p=>({...p,phase:0}));
   const emer=r.tier==='emergency';
-  document.getElementById('route-banner').innerHTML=`<div class="route-banner ${emer?'emergency':'fair'}"><div class="rt">${emer?'⚡ Immediate response':'⚖️ Fair assignment'}</div>${r.routing_reason}</div>`;
+  document.getElementById('route-banner').innerHTML=emer?`<div class="route-banner emergency"><div class="rt"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Immediate response</div>${r.routing_reason}</div>`:'';
   saveLocal();renderPlan();renderSaveBox();
 }
 function renderPlan(){
   const crisisCard=(S.intake&&S.intake.safety_flag)?`<div style="background:#FFF7F0;border:1.5px solid rgba(232,160,76,.45);border-radius:16px;padding:16px;margin-bottom:16px;">
     <div style="font-size:13px;font-weight:700;color:#0F3A3D;margin-bottom:10px;">Crisis support — available right now</div>
-    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
-      <div>📞 <b>988</b> — Suicide &amp; Crisis Lifeline (call or text, 24/7, free)</div>
-      <div>💬 Text <b>HOME</b> to <b>741741</b> — Crisis Text Line (24/7, free)</div>
-      <div>☎️ <b>1-800-662-4357</b> — SAMHSA Mental Health Helpline</div>
-      <div>🚨 <b>911</b> — If you or someone is in immediate danger</div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:#0F3A3D;">
+      <div style="display:flex;align-items:center;gap:8px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6.6 10.8a15.6 15.6 0 006.6 6.6l2.2-2.2a1 1 0 011.1-.2c1.2.4 2.5.6 3.8.6a1 1 0 011 1V20a1 1 0 01-1 1C10.6 21 3 13.4 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.3.2 2.6.6 3.8a1 1 0 01-.2 1.1L6.6 10.8z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>988</b> — Suicide &amp; Crisis Lifeline (call or text, 24/7, free)</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Text <b>HOME</b> to <b>741741</b> — Crisis Text Line (24/7, free)</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 000-7.6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>1-800-662-4357</b> — SAMHSA Mental Health Helpline</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M10.3 3.2L1.6 18a2 2 0 001.7 3h17.4a2 2 0 001.7-3L13.7 3.2a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg><span><b>911</b> — If you or someone is in immediate danger</span></div>
     </div>
   </div>`:'';
   document.getElementById('plan-list').innerHTML=crisisCard+S.plan.map((p,idx)=>`
@@ -972,18 +972,18 @@ function followMsg(p){
     const tip=hasPhone?`Call ahead first: <b>${p.phone}</b>`
               :hasHours?`Open: ${p.hours}`
               :'Call ahead to confirm they can receive you.';
-    return `<strong>Step 1 — Reach out:</strong> ${s}<br><span style="font-size:12.5px;opacity:.78;margin-top:4px;display:block;">💡 ${tip}</span>`;
+    return `<strong>Step 1 — Reach out:</strong> ${s}<br><span style="font-size:12.5px;opacity:.78;margin-top:4px;display:flex;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${tip}</span>`;
   }
   if(p.phase===1){
     const s=steps[1]||`Go in person to ${p.name} and submit your application.`;
     const bringNote=bring?`Bring: <b>${bring}</b>`:'Ask the staff what documents you need.';
-    return `<strong>Step 2 — Apply:</strong> ${s}<br><span style="font-size:12.5px;opacity:.78;margin-top:4px;display:block;">📋 ${bringNote}</span>`;
+    return `<strong>Step 2 — Apply:</strong> ${s}<br><span style="font-size:12.5px;opacity:.78;margin-top:4px;display:flex;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>${bringNote}</span>`;
   }
   if(p.phase===2){
     const s=steps[2]||'Wait for confirmation. Follow up if you haven\'t heard back in a few days.';
     const followUp=hasPhone?`If you don't hear back in 3–5 days, call them: <b>${p.phone}</b>`
                   :'If you don\'t hear back in 3–5 days, visit in person or contact a caseworker.';
-    return `<strong>Step 3 — Wait for confirmation:</strong> ${s}<br><span style="font-size:12.5px;opacity:.78;margin-top:4px;display:block;">⏳ ${followUp}</span>`;
+    return `<strong>Step 3 — Wait for confirmation:</strong> ${s}<br><span style="font-size:12.5px;opacity:.78;margin-top:4px;display:flex;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>${followUp}</span>`;
   }
   return '<strong>Step 4 — Help received.</strong> The loop closed — exactly what Zen measures.';
 }
