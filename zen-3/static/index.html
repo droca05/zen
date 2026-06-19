@@ -790,7 +790,7 @@ async function doMatch(){
   goScreen('results');
   const needs=(S.intake.needs&&S.intake.needs.length)?S.intake.needs:S.needs;
   const rf=S.refined||{};
-  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
+  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
   if(!r.plan||!r.plan.length){document.getElementById('plan-list').innerHTML='<div class="spinner">No matches in current capacity — escalating to a caseworker.</div>';return;}
   S.tracking=r.tracking_number;S.plan=r.plan.map(p=>({...p,phase:0}));
   const emer=r.tier==='emergency';

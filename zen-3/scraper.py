@@ -133,14 +133,18 @@ out center;
             tags.get("addr:street", ""),
             tags.get("addr:city", ""),
         ])).strip() or tags.get("addr:full", "")
+        rlat = el.get("lat") or (el.get("center") or {}).get("lat")
+        rlon = el.get("lon") or (el.get("center") or {}).get("lon")
+        s, w, n, e = (float(x) for x in bbox.split(","))
+        zone = _lat_lon_to_zone(rlat, rlon, (s, w, n, e)) if rlat and rlon else rid % 6
         records.append(_hsds_record(
             rid=f"R{rid:04d}", name=name, service=service,
             address=addr,
             hours=tags.get("opening_hours", "Call for hours"),
             phone=tags.get("phone", tags.get("contact:phone", "")),
             url=tags.get("website", tags.get("contact:website", "")),
-            zone=rid % 6, capacity=random.randint(10, 40),
-            verified_days=0,
+            zone=zone, capacity=random.randint(10, 40),
+            verified_days=0, lat=rlat, lon=rlon,
         ))
         counts[service] = counts.get(service, 0) + 1
         rid += 1
@@ -192,9 +196,18 @@ def scrape_live(url: str, max_items: int = 100) -> list[dict]:
     return records
 
 
+def _lat_lon_to_zone(lat: float, lon: float,
+                     bbox=(29.5, -95.7, 30.1, -95.1)) -> int:
+    """Map a lat/lon to zone 0-5 on a 3×2 grid of the service area."""
+    s, w, n, e = bbox
+    row = min(2, max(0, int((lat - s) / (n - s) * 3)))
+    col = min(1, max(0, int((lon - w) / (e - w) * 2)))
+    return row * 2 + col
+
+
 def _hsds_record(rid, name, service, address, hours, phone,
                  zone=None, capacity=None, max_income=0, min_hh=0,
-                 verified_days=0, url="") -> dict:
+                 verified_days=0, url="", lat=None, lon=None) -> dict:
     """One Open Referral HSDS-shaped service record."""
     return {
         "resource_id": rid,
@@ -203,18 +216,15 @@ def _hsds_record(rid, name, service, address, hours, phone,
         "address": address,
         "phone": phone,
         "hours": hours,
-        "url": url,                      # source link (scraped or official page)
-        # operational fields the MILP needs
+        "url": url,
+        "lat": lat,
+        "lon": lon,
         "zip_zone": zone if zone is not None else random.randint(0, 5),
         "capacity": capacity if capacity is not None else random.randint(6, 50),
         "max_income": max_income,
         "min_household_size": min_hh,
         "last_verified_days_ago": verified_days,
-        # HSDS bookkeeping
-        "hsds": {
-            "schema": "openreferral-hsds-3.0",
-            "status": "active",
-        },
+        "hsds": {"schema": "openreferral-hsds-3.0", "status": "active"},
     }
 
 

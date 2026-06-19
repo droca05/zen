@@ -42,6 +42,17 @@ from db import get_sb
 # Needs treated as time-critical emergencies (real-time heuristic path).
 EMERGENCY_NEEDS = {"food", "housing"}
 
+# Service-area grid for Houston TX (matches OSM scraper default bbox)
+_AREA_BBOX = (29.5, -95.7, 30.1, -95.1)   # south, west, north, east
+
+
+def _coords_to_zone(lat: float, lon: float) -> int:
+    """Map user lat/lon to zone 0-5 on the 3×2 service-area grid."""
+    s, w, n, e = _AREA_BBOX
+    row = min(2, max(0, int((lat - s) / (n - s) * 3)))
+    col = min(1, max(0, int((lon - w) / (e - w) * 2)))
+    return row * 2 + col
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data", "resources.json")
 
@@ -132,6 +143,8 @@ class MatchReq(BaseModel):
     needs: list[str]
     urgency: str = "this_week"
     zip_zone: int = 1
+    lat: Optional[float] = None
+    lon: Optional[float] = None
     household_size: int = 3
     monthly_income: int = 900
     has_transport: bool = False
@@ -188,11 +201,12 @@ def api_followups(req: FollowupReq):
 
 @app.post("/api/match")
 def api_match(req: MatchReq):
+    zone = _coords_to_zone(req.lat, req.lon) if req.lat and req.lon else req.zip_zone
     user = UserProfile(
         user_id="LIVE", needs=req.needs, urgency=req.urgency,
         household_size=req.household_size, monthly_income=req.monthly_income,
         race_group=req.race_group, language=req.language,
-        has_transport=req.has_transport, zip_zone=req.zip_zone,
+        has_transport=req.has_transport, zip_zone=zone,
     )
     resources = load_resources()
     meta = resource_meta()
@@ -405,8 +419,9 @@ def api_forecast():
     shortfalls = [r for r in full if r["gap"] > 0][:6]
     # zone centers (illustrative, around a default city) for the heat map
     ZONE_COORDS = {
-        0: [25.6866, -100.3161], 1: [25.6510, -100.2890], 2: [25.7250, -100.3400],
-        3: [25.6700, -100.3600], 4: [25.7100, -100.2700], 5: [25.6300, -100.3300],
+        0: [29.6, -95.55], 1: [29.6, -95.25],
+        2: [29.8, -95.55], 3: [29.8, -95.25],
+        4: [30.0, -95.55], 5: [30.0, -95.25],
     }
     # aggregate worst gap per zone for the map coloring
     zone_gap = {}
