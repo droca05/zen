@@ -124,9 +124,22 @@ def solve(
 
     # ── confidence/score per feasible pair (also used as objective weight) ────
     def match_score(u: UserProfile, r: Resource) -> float:
+        # Proximity (50 pts): same zone = full score, degrades with distance
         d = zone_distance(u.zip_zone, r.zip_zone)
-        prox = 1.0 / (1.0 + d)                 # closer = better
-        return round(0.5 + 0.5 * prox, 3)      # in [0.5, 1.0]
+        proximity = 0.50 * (1.0 / (1.0 + d))
+
+        # Income headroom (30 pts): wider margin under the ceiling = better odds
+        if r.max_income and r.max_income > 0:
+            headroom = (r.max_income - u.monthly_income) / r.max_income
+            income = 0.30 * min(1.0, max(0.0, headroom))
+        else:
+            income = 0.30   # no ceiling → full score
+
+        # Capacity (20 pts): more open slots = better odds of getting served
+        cap = min(r.capacity, 40) / 40.0 if r.capacity and r.capacity > 0 else 0.5
+        capacity = 0.20 * cap
+
+        return round(proximity + income + capacity, 3)
 
     score = {(i, j): match_score(users[i], resources[j]) for (i, j) in feasible_pairs}
 

@@ -25,7 +25,7 @@ def seed():
 
     rows = []
     for r in blob["resources"]:
-        rows.append({
+        row = {
             "resource_id":            r["resource_id"],
             "name":                   r["name"],
             "service_type":           r["service_type"],
@@ -38,7 +38,12 @@ def seed():
             "max_income":             r.get("max_income", 0),
             "min_household_size":     r.get("min_household_size", 0),
             "last_verified_days_ago": r.get("last_verified_days_ago", 0),
-        })
+        }
+        if r.get("lat") is not None:
+            row["lat"] = r["lat"]
+        if r.get("lon") is not None:
+            row["lon"] = r["lon"]
+        rows.append(row)
 
     sb.table("resources").delete().neq("resource_id", "").execute()
     print(f"  Cleared old records.")
