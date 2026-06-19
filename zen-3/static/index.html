@@ -885,7 +885,23 @@ function renderTracker(){
 }
 function advanceTrack(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();renderTracker();}
 function dismissPlan(rid){if(!confirm('Remove this program from your list?'))return;S.plan=S.plan.filter(x=>x.resource_id!==rid);saveLocal();renderTracker();if(S.tracking)post('/api/case/save',{tracking:S.tracking,plan:S.plan,email:S.email,ong_consent:S.ongConsent});}
-function followMsg(p){return['Seen. Next: contact them and mark Requested.','Requested. Take your documents and apply — then mark Applied.','Applied. Come back to let us know when you received help.','Received. The loop closed — exactly what Zen measures.'][p.phase];}
+function followMsg(p){
+  const steps=p.steps||[];const bring=p.bring||'';
+  const contact=[p.hours,p.phone].filter(Boolean).join(' · ');
+  if(p.phase===0){
+    const s=steps[0]||'Contact them to confirm availability.';
+    return `<strong>Next step:</strong> ${s}${contact?`<br><span style="opacity:.75;font-size:13px;">⏰ ${contact}</span>`:''}`;
+  }
+  if(p.phase===1){
+    const s=steps[1]||'Gather your documents and apply.';
+    return `<strong>What to bring:</strong> ${bring||'Ask when you call.'}<br><span style="opacity:.85">${s}</span>`;
+  }
+  if(p.phase===2){
+    const s=steps[2]||'Follow up if you haven\'t heard back within a few days.';
+    return `<strong>While you wait:</strong> ${s}`;
+  }
+  return 'Help received. The loop closed — exactly what Zen measures.';
+}
 
 function offset(b,i){return[b[0]+(Math.sin(i*1.7)*.012),b[1]+(Math.cos(i*2.3)*.014)];}
 function renderMap(){
