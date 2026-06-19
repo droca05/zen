@@ -449,11 +449,9 @@ def _gemini_key() -> Optional[str]:
     return None
 
 
-def _rule_based_answer(q: str, plan: list) -> str:
+def _rule_based_answer(q: str, plan: list, language: str = "English") -> str:
     t = (q or "").lower()
-    spanish = any(w in t for w in ["hola", "ayuda", "qué", "que", "cómo", "como",
-                                    "necesito", "gracias", "tengo", "documentos",
-                                    "llevar", "cerrado", "lleno", "seguro", "privad"])
+    spanish = language == "Spanish"
     first = next((p for p in plan if p.get("start_here")), (plan[0] if plan else None))
     if any(w in t for w in ["first", "start", "primero", "empiezo"]):
         if first:
@@ -482,6 +480,7 @@ class ChatReq(BaseModel):
     message: str
     plan: list = []
     tracking: str = ""
+    language: str = "English"
 
 
 @app.post("/api/chat")
@@ -494,14 +493,13 @@ def api_chat(req: ChatReq):
                 f"Steps: {'; '.join(p.get('steps', []))}. Bring: {p.get('bring','')}."
                 for p in req.plan
             ) or "No plan yet."
-            lang_hint = "Spanish" if any(w in req.message.lower() for w in
-                ["hola","qué","que","cómo","como","necesito","tengo","llevar","cerrado","ayuda","gracias","documentos"]) else "English"
+            lang = req.language if req.language in ("Spanish", "English") else "English"
             sys_inst = (
                 f"You are Zen's helper for people in crisis seeking public benefits. "
-                f"The user is writing in {lang_hint}. You MUST reply in {lang_hint}. "
+                f"The user's language is {lang}. You MUST reply ONLY in {lang}, regardless of what language this instruction is written in. "
                 f"Answer in plain, warm, short language (max 3 sentences), at a 6th-grade reading level. "
-                f"Use ONLY the resources in the user's plan below. Never invent programs, phone numbers, "
-                f"or eligibility. If the user greets you or asks something unclear, respond warmly and ask how you can help with their plan. "
+                f"Use ONLY the resources in the user's plan below. Never invent programs, phone numbers, or eligibility. "
+                f"If the user greets you or sends a short message, respond warmly and ask how you can help with their plan. "
                 f"\n\nUSER'S PLAN:\n" + plan_txt
             )
             url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -520,9 +518,9 @@ def api_chat(req: ChatReq):
             text = candidates[0]["content"]["parts"][0]["text"]
             return {"reply": text.strip(), "source": "gemini"}
         except Exception as e:
-            return {"reply": _rule_based_answer(req.message, req.plan),
+            return {"reply": _rule_based_answer(req.message, req.plan, req.language),
                     "source": "fallback", "note": str(e)[:120]}
-    return {"reply": _rule_based_answer(req.message, req.plan), "source": "rules"}
+    return {"reply": _rule_based_answer(req.message, req.plan, req.language), "source": "rules"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

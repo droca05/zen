@@ -910,7 +910,7 @@ async function askChat(q){
   appendChatMe(q);
   const typing=document.createElement('div');typing.className='chat-msg-bot';typing.textContent='…';
   document.getElementById('chat-body').appendChild(typing);
-  try{const r=await post('/api/chat',{message:q,plan:S.plan,tracking:S.tracking||''});typing.innerHTML=r.reply;}
+  try{const r=await post('/api/chat',{message:q,plan:S.plan,tracking:S.tracking||'',language:S.intake.language||'English'});typing.innerHTML=r.reply;}
   catch(e){typing.textContent='Having trouble right now — please try again in a moment.';}
   document.getElementById('chat-body').scrollTop=99999;
 }
