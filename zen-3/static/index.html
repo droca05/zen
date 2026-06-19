@@ -1026,7 +1026,7 @@ async function renderMap(){
 
 function toggleChat(){document.getElementById('chat-panel').classList.toggle('open');if(!S.chatReady){bootChat();S.chatReady=true;}}
 function bootChat(){
-  const q=['What do I do first?','What should I bring?','Is my information safe?','What if a place is closed?'];
+  const q=['What do I do first?','What should I bring?','Is my information safe?','What if a place is closed?','How long does it take?','Can I get help without ID?','What if I don\'t speak English?','Can I bring my kids?','What if the center is full?','How does Zen work?'];
   appendChatBot('Hi, I\'m here to help with your plan. What would you like to know?');
   document.getElementById('chat-chips').innerHTML=q.map(s=>`<button onclick="askChat('${s.replace(/'/g,"\\'")}')">${s}</button>`).join('');
 }
