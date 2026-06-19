@@ -42,8 +42,8 @@ from db import get_sb
 # Needs treated as time-critical emergencies (real-time heuristic path).
 EMERGENCY_NEEDS = {"food", "housing"}
 
-# Service-area grid for Houston TX (matches OSM scraper default bbox)
-_AREA_BBOX = (29.5, -95.7, 30.1, -95.1)   # south, west, north, east
+# Service-area grid for Monterrey, NL (matches OSM scraper --bbox below)
+_AREA_BBOX = (25.5, -100.6, 25.9, -100.1)   # south, west, north, east
 
 
 def _coords_to_zone(lat: float, lon: float) -> int:
@@ -419,9 +419,9 @@ def api_forecast():
     shortfalls = [r for r in full if r["gap"] > 0][:6]
     # zone centers (illustrative, around a default city) for the heat map
     ZONE_COORDS = {
-        0: [29.6, -95.55], 1: [29.6, -95.25],
-        2: [29.8, -95.55], 3: [29.8, -95.25],
-        4: [30.0, -95.55], 5: [30.0, -95.25],
+        0: [25.57, -100.45], 1: [25.57, -100.20],
+        2: [25.70, -100.45], 3: [25.70, -100.20],
+        4: [25.83, -100.45], 5: [25.83, -100.20],
     }
     # aggregate worst gap per zone for the map coloring
     zone_gap = {}

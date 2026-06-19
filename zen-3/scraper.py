@@ -43,7 +43,7 @@ SELECTORS = {
 }
 
 
-def scrape_osm(bbox: str = "29.5,-95.7,30.1,-95.1", max_per_type: int = 8) -> list[dict]:
+def scrape_osm(bbox: str = "25.5,-100.6,25.9,-100.1", max_per_type: int = 8) -> list[dict]:
     """
     Fetch real community resources from OpenStreetMap via Overpass API.
     bbox = "south,west,north,east"  (default: Houston, TX)
@@ -276,7 +276,7 @@ def main():
     ap.add_argument("--osm",  action="store_true", help="fetch real data from OpenStreetMap")
     ap.add_argument("--seed", action="store_true", help="generate seed data (default)")
     ap.add_argument("--url",  default="", help="listing URL for --live")
-    ap.add_argument("--bbox", default="29.5,-95.7,30.1,-95.1",
+    ap.add_argument("--bbox", default="25.5,-100.6,25.9,-100.1",
                     help="lat/lon bbox for --osm (default: Houston TX). "
                          "Format: south,west,north,east")
     args = ap.parse_args()
