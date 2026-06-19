@@ -204,8 +204,9 @@ textarea.zen-input{resize:none;}
 #chat-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
 .chat-msg-bot{align-self:flex-start;background:#D4E9E8;color:#0B3D37;border-radius:14px 14px 14px 4px;padding:11px 14px;font-size:14px;line-height:1.5;max-width:84%;}
 .chat-msg-me{align-self:flex-end;background:#1B7A7E;color:#fff;border-radius:14px 14px 4px 14px;padding:11px 14px;font-size:14px;line-height:1.5;max-width:84%;}
-#chat-chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 12px;}
-#chat-chips button{border:1.5px solid #1B7A7E;background:#fff;color:#1B7A7E;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:999px;}
+#chat-chips{display:flex;flex-wrap:nowrap;gap:8px;padding:0 14px 12px;overflow-x:auto;scrollbar-width:none;}
+#chat-chips::-webkit-scrollbar{display:none;}
+#chat-chips button{flex:none;border:1.5px solid #1B7A7E;background:#fff;color:#1B7A7E;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:999px;}
 #chat-chips button:hover{background:#D4E9E8;}
 #chat-form{display:flex;align-items:center;gap:10px;border-top:1px solid rgba(20,52,47,.12);padding:12px 14px;background:#fff;}
 #chat-in{flex:1;min-width:0;border:none;outline:none;font-size:14px;color:#14342F;background:transparent;font-family:'Plus Jakarta Sans';}
