@@ -461,9 +461,9 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
       <p style="font-size:15px;line-height:1.55;color:rgba(20,52,47,.8);margin-bottom:20px;">Your matched resources on the map.</p>
       <div id="pmap"></div>
       <div style="display:flex;flex-wrap:wrap;gap:18px;font-size:13px;font-weight:600;color:rgba(20,52,47,.85);margin-top:12px;">
-        <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#D9735A;"></span>Start here</span>
-        <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#155F62;"></span>Your matches</span>
-        <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#3FA6A0;"></span>You</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:50%;background:#E8A04C;border:2px solid #fff;box-shadow:0 0 0 1.5px #E8A04C;"></span>Your location</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:50%;background:#0F3A3D;border:2px solid #fff;box-shadow:0 0 0 1.5px #0F3A3D;"></span>Your matches</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:10px;height:10px;border-radius:50%;background:#3FA6A0;border:2px solid #fff;box-shadow:0 0 0 1.5px #3FA6A0;"></span>Other nearby</span>
       </div>
     </div>
   </div>
@@ -989,13 +989,38 @@ function followMsg(p){
   return '<strong>Step 4 — Help received.</strong> The loop closed — exactly what Zen measures.';
 }
 
-function offset(b,i){return[b[0]+(Math.sin(i*1.7)*.012),b[1]+(Math.cos(i*2.3)*.014)];}
-function renderMap(){
+const _ZONE_LL=[[25.57,-100.45],[25.57,-100.20],[25.70,-100.45],[25.70,-100.20],[25.83,-100.45],[25.83,-100.20]];
+function _resLL(r,fallback){if(r.lat&&r.lon)return[parseFloat(r.lat),parseFloat(r.lon)];return _ZONE_LL[Math.min(r.zip_zone||0,5)]||fallback;}
+async function renderMap(){
   const center=S.coords||[25.6866,-100.3161];
   if(!pmap){pmap=L.map('pmap').setView(center,13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(pmap);}
-  else{pmap.setView(center,13);pmap.eachLayer(l=>{if(l instanceof L.CircleMarker)pmap.removeLayer(l);});}
-  L.circleMarker(center,{radius:9,color:'#3FA6A0',fillColor:'#3FA6A0',fillOpacity:1}).addTo(pmap).bindPopup('You are here');
-  S.plan.forEach((p,i)=>{const pos=offset(center,i+1);const col=p.start_here?'#D9735A':'#155F62';L.circleMarker(pos,{radius:10,color:col,fillColor:col,fillOpacity:.9}).addTo(pmap).bindPopup(`<b>${p.name}</b><br>${p.hours}`);});
+  else{pmap.setView(center,13);pmap.eachLayer(l=>{if(l instanceof L.CircleMarker||l instanceof L.Marker)pmap.removeLayer(l);});}
+
+  // Layer 1 — other relevant resources (fetched from API)
+  let allRes=[];
+  try{const d=await fetch('/api/ong/resources').then(r=>r.json());allRes=d.resources||[];}catch(e){}
+  const matchedIds=new Set(S.plan.map(p=>p.resource_id));
+  const userNeeds=new Set((S.intake&&S.intake.needs)||[]);
+  allRes.forEach(r=>{
+    if(matchedIds.has(r.resource_id))return;
+    if(userNeeds.size&&!userNeeds.has(r.service_type))return;
+    const ll=_resLL(r,center);
+    L.circleMarker(ll,{radius:7,color:'#fff',weight:2,fillColor:'#3FA6A0',fillOpacity:.85})
+      .addTo(pmap).bindPopup(`<b>${r.name}</b><br><span style="text-transform:capitalize;">${r.service_type}</span>${r.address?'<br>'+r.address:''}`);
+  });
+
+  // Layer 2 — matched resources (from S.plan)
+  S.plan.forEach(p=>{
+    const raw=allRes.find(x=>x.resource_id===p.resource_id)||{zip_zone:p.zone||0};
+    const ll=p.resource_id&&raw.lat?[parseFloat(raw.lat),parseFloat(raw.lon)]:_ZONE_LL[Math.min(p.zone||0,5)]||center;
+    L.circleMarker(ll,{radius:11,color:'#fff',weight:2.5,fillColor:'#0F3A3D',fillOpacity:1})
+      .addTo(pmap).bindPopup(`<b>${p.name}</b><br><span style="text-transform:capitalize;">${p.service}</span>${p.address?'<br>'+p.address:''}`);
+  });
+
+  // Layer 3 — user location (always on top, drawn last)
+  L.circleMarker(center,{radius:12,color:'#fff',weight:2.5,fillColor:'#E8A04C',fillOpacity:1})
+    .addTo(pmap).bindPopup('<b>Your location</b>');
+
   setTimeout(()=>pmap.invalidateSize(),200);
 }
 
