@@ -94,11 +94,20 @@ def _load():
         return json.load(f)
 
 
+_SUPABASE_COLS = {"id","user_hash","reason","summary","urgency","has_children",
+                  "safety_flag","language","status","referred_to","flagged_at","resolved_at"}
+
 def save(cases):
     sb = _get_sb()
     if sb:
         if cases:
-            sb.table("escalations").upsert(cases).execute()
+            try:
+                rows = [{k: v for k, v in c.items() if k in _SUPABASE_COLS} for c in cases]
+                sb.table("escalations").upsert(rows).execute()
+            except Exception as e:
+                print(f"[caseworker] Supabase save failed: {e}. Falling back to JSON.")
+                with open(STORE, "w", encoding="utf-8") as f:
+                    json.dump(cases, f, indent=2)
         return
     with open(STORE, "w", encoding="utf-8") as f:
         json.dump(cases, f, indent=2)

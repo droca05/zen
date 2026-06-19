@@ -326,15 +326,13 @@ def api_checkin(req: CheckinReq):
                 "escalate": False}
     # broken loop → create a real escalation in the caseworker queue
     contact_parts = []
-    if req.contact_phone: contact_parts.append(f"phone: {req.contact_phone}")
+    if req.contact_phone: contact_parts.append(f"tel: {req.contact_phone}")
     if req.contact_email: contact_parts.append(f"email: {req.contact_email}")
-    contact_str = " · ".join(contact_parts) if contact_parts else "no contact info"
-    cw.add_escalation("broken_loop",
-                      summary=f"Reported no help received from {req.resource_id}",
-                      urgency="today",
-                      contact_phone=req.contact_phone,
-                      contact_email=req.contact_email,
-                      contact_info=contact_str)
+    contact_str = " · ".join(contact_parts) if contact_parts else ""
+    summary = f"No help received from {req.resource_id}"
+    if contact_str:
+        summary += f" — {contact_str}"
+    cw.add_escalation("broken_loop", summary=summary, urgency="today")
     return {
         "loop": "broken", "escalate": True,
         "caseworker": {"name": "Sarah", "eta_hours": 2, "language": "Spanish"},

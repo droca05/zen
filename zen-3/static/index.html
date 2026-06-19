@@ -1044,7 +1044,7 @@ async function loadCw(){
         <span class="cw-badge" style="background:${CW_COLOR(c.vulnerability)};"><span class="cb1">${i===0?'NOW':'#'+(i+1)}</span><span class="cb2">p${c.vulnerability}</span></span>
         <div class="cw-main">
           <h4>${c.summary}${c.has_children?' · has children':''}</h4>
-          <div class="meta">case ${c.id} · ${c.user_hash} · ${c.urgency} · ${c.language}${c.contact_info?` · <b>${c.contact_info}</b>`:''}</div>
+          <div class="meta">case ${c.id} · ${c.user_hash} · ${c.urgency} · ${c.language}</div>
           <span class="cw-tag" style="background:${CW_TAGBG(c.reason)};color:${CW_TAGFG(c.reason)};">${c.reason_label}</span>
         </div>
         <button onclick="openResolve('${c.id}')" style="flex:none;align-self:center;border:1.5px solid rgba(20,52,47,.45);background:#ffffff;color:#0F3A3D;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:14px;padding:10px 16px;border-radius:11px;display:inline-flex;align-items:center;gap:7px;">
