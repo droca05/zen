@@ -57,25 +57,29 @@ REASON_LABEL = {
 
 
 def _seed():
-    """A few realistic escalations so the queue isn't empty in the demo."""
+    """Casos iniciales de demostración — Área Metropolitana de Monterrey."""
     now = datetime.now()
     return [
         {"id": "C001", "user_hash": "u_8f3a", "reason": "safety", "safety_flag": True,
-         "summary": "Mentioned fleeing an unsafe home tonight", "urgency": "today",
-         "has_children": True, "flagged_at": (now - timedelta(minutes=6)).isoformat(),
+         "summary": "Menciona violencia doméstica; necesita salir de casa esta noche con sus hijos",
+         "urgency": "today", "has_children": True,
+         "flagged_at": (now - timedelta(minutes=6)).isoformat(),
          "status": "open", "language": "Spanish"},
         {"id": "C002", "user_hash": "u_2b91", "reason": "broken_loop", "safety_flag": False,
-         "summary": "Food bank was full when they arrived", "urgency": "today",
-         "has_children": True, "flagged_at": (now - timedelta(hours=3)).isoformat(),
+         "summary": "Fue al banco de alimentos DIF pero ya estaba cerrado; familia sin comer hoy",
+         "urgency": "today", "has_children": True,
+         "flagged_at": (now - timedelta(hours=3)).isoformat(),
          "status": "open", "language": "Spanish"},
         {"id": "C003", "user_hash": "u_d7c4", "reason": "low_confidence", "safety_flag": False,
-         "summary": "Heavy accent, transcript unclear on housing need", "urgency": "this_week",
-         "has_children": False, "no_id": True, "flagged_at": (now - timedelta(hours=1)).isoformat(),
-         "status": "open", "language": "Other"},
+         "summary": "Habla náhuatl como primera lengua; transcripción poco clara en necesidad de vivienda",
+         "urgency": "this_week", "has_children": False, "no_id": True,
+         "flagged_at": (now - timedelta(hours=1)).isoformat(),
+         "status": "open", "language": "Indigena"},
         {"id": "C004", "user_hash": "u_5e22", "reason": "broken_loop", "safety_flag": False,
-         "summary": "Clinic didn't answer; still needs care", "urgency": "this_week",
-         "has_children": False, "flagged_at": (now - timedelta(hours=20)).isoformat(),
-         "status": "open", "language": "English"},
+         "summary": "La clínica IMSS no contestó; sigue sin atención médica para su bebé",
+         "urgency": "this_week", "has_children": True,
+         "flagged_at": (now - timedelta(hours=20)).isoformat(),
+         "status": "open", "language": "Spanish"},
     ]
 
 

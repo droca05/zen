@@ -31,9 +31,9 @@ RNG = np.random.default_rng(42)
 random.seed(42)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# ACS-INFORMED MARGINAL DISTRIBUTIONS
-# (Rounded from ACS 2019-2023 5-year national estimates for low-income households.
-#  Replace with a real PUMS + IPF draw in production.)
+# INEGI/ENIGH-INFORMED MARGINAL DISTRIBUTIONS — Área Metropolitana de Monterrey
+# (Rounded from ENIGH 2022 and INEGI Censo 2020 for low-income households in NL.
+#  Replace with a real PUMS + IPF draw over INEGI microdata in production.)
 # ──────────────────────────────────────────────────────────────────────────────
 
 CRISIS_TYPES = ["food", "housing", "healthcare", "childcare", "employment"]
@@ -47,14 +47,15 @@ NEED_PREVALENCE = {
     "employment": 0.46,
 }
 
-# Race/ethnicity marginals (ACS-informed; the *sensitive attribute* for fairness).
+# Geographic/socioeconomic groups — the *sensitive attribute* for fairness.
+# In Monterrey the key equity axis is spatial: established urban vs. periurban.
 # These are the groups the demographic-parity constraint will protect.
-RACE_GROUPS = ["White", "Black", "Latino", "Asian", "Other"]
-RACE_WEIGHTS = [0.38, 0.22, 0.27, 0.08, 0.05]
+RACE_GROUPS = ["Centro", "Periferia", "Migrante", "Indigena", "Otro"]
+RACE_WEIGHTS = [0.30, 0.42, 0.17, 0.07, 0.04]
 
-# Primary language (drives the ASR / intake accessibility story).
-LANGUAGES = ["English", "Spanish", "Mandarin", "Other"]
-LANG_WEIGHTS = [0.55, 0.31, 0.06, 0.08]
+# Primary language (Monterrey AMM — INEGI Censo 2020).
+LANGUAGES = ["Spanish", "Indigena", "English", "Other"]
+LANG_WEIGHTS = [0.88, 0.07, 0.03, 0.02]
 
 URGENCY_LEVELS = ["today", "this_week", "this_month"]
 URGENCY_WEIGHTS = [0.28, 0.44, 0.28]
@@ -92,9 +93,9 @@ def generate_users(n: int = 200, n_zones: int = 6) -> list[UserProfile]:
     users = []
     for i in range(n):
         size = int(RNG.choice([1, 2, 3, 4, 5, 6], p=[0.18, 0.24, 0.22, 0.18, 0.12, 0.06]))
-        # income loosely scaled to household size, low-income skew
-        base = RNG.normal(1100, 450)
-        income = max(0, int(base + size * RNG.normal(220, 90)))
+        # Income in MXN/month — low-income skew for Monterrey AMM (ENIGH 2022)
+        base = RNG.normal(9000, 3500)
+        income = max(0, int(base + size * RNG.normal(1800, 700)))
         users.append(UserProfile(
             user_id=f"U{i:04d}",
             needs=_sample_needs(),
@@ -129,11 +130,11 @@ class Resource:
 
 
 RESOURCE_TEMPLATES = {
-    "food":       ("Food Bank",          [40, 25, 60, 30]),
-    "housing":    ("Rent Relief Program", [8, 12, 6, 10]),
-    "healthcare": ("Community Clinic",     [20, 15, 30]),
-    "childcare":  ("Childcare Subsidy",    [10, 14, 8]),
-    "employment": ("Job Placement Center", [18, 22, 12]),
+    "food":       ("Banco de Alimentos",         [40, 25, 60, 30]),
+    "housing":    ("Programa de Renta Justa",    [8, 12, 6, 10]),
+    "healthcare": ("Clínica Comunitaria",         [20, 15, 30]),
+    "childcare":  ("Subsidio de Guardería",       [10, 14, 8]),
+    "employment": ("Centro de Empleo",            [18, 22, 12]),
 }
 
 
@@ -150,8 +151,8 @@ def generate_resources(n_zones: int = 6) -> list[Resource]:
                 service_type=stype,
                 zip_zone=zone,
                 capacity=int(cap),
-                # ~half the programs have an income ceiling; rest open
-                max_income=int(RNG.choice([0, 1500, 2000, 2500], p=[0.4, 0.2, 0.2, 0.2])),
+                # ~half the programs have an income ceiling (MXN/month); rest open
+                max_income=int(RNG.choice([0, 12000, 16000, 20000], p=[0.4, 0.2, 0.2, 0.2])),
                 min_household_size=int(RNG.choice([0, 0, 0, 2])),
                 hours=RNG.choice(["Mon-Fri 9-5", "Daily 8-8", "Mon-Sat 10-4", "Apply online"]),
                 last_verified_days_ago=int(RNG.integers(0, 75)),  # freshness varies

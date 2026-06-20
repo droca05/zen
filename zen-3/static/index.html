@@ -1163,28 +1163,28 @@ async function loadOrg(){
 async function runMilp(){
   document.getElementById('milp-sim').innerHTML='<div class="spinner">Running the solver…</div>';
   const d=await get('/api/batch/run');
-  const cls=g=>g==='White'?'#1B7A7E':'#E8A04C';
-  function grid(w){return d.people.map(p=>{const s=p[w]!=null;return `<span class="milp-sq" style="background:${cls(p.group)};opacity:${s?'1':'.28'};" title="${p.group}${s?' → served':' → unserved'}"></span>`;}).join('');}
-  const nW=Math.round((d.naive.by_group.White||0)*100),nL=Math.round((d.naive.by_group.Latino||0)*100);
-  const fW=Math.round((d.fair.by_group.White||0)*100),fL=Math.round((d.fair.by_group.Latino||0)*100);
+  const cls=g=>g==='Centro'?'#1B7A7E':'#E8A04C';
+  function grid(w){return d.people.map(p=>{const s=p[w]!=null;return `<span class="milp-sq" style="background:${cls(p.group)};opacity:${s?'1':'.28'};" title="${p.group}${s?' → atendido':' → sin atender'}"></span>`;}).join('');}
+  const nC=Math.round((d.naive.by_group.Centro||0)*100),nP=Math.round((d.naive.by_group.Periferia||0)*100);
+  const fC=Math.round((d.fair.by_group.Centro||0)*100),fP=Math.round((d.fair.by_group.Periferia||0)*100);
   document.getElementById('milp-sim').innerHTML=`
-    <div style="font-size:12.5px;font-weight:700;color:rgba(20,52,47,.6);margin-bottom:14px;">${d.people.length} people · ${d.resources.reduce((a,r)=>a+r.capacity,0)} slots across ${d.resources.length} sites</div>
+    <div style="font-size:12.5px;font-weight:700;color:rgba(20,52,47,.6);margin-bottom:14px;">${d.people.length} familias · ${d.resources.reduce((a,r)=>a+r.capacity,0)} lugares en ${d.resources.length} centros · Monterrey AMM</div>
     <div class="milp-cols">
-      <div class="milp-side L"><div class="mh">Naive (greedy)</div>
+      <div class="milp-side L"><div class="mh">Sin paridad (greedy)</div>
         <div class="milp-ppl">${grid('naive')}</div>
-        <div style="font-size:12px;color:rgba(20,52,47,.8);margin-bottom:5px;">Group A served ${nW}% · Group B ${nL}%</div>
-        <div class="milp-gap">${Math.round(d.naive.parity_gap*100)}% gap</div>
+        <div style="font-size:12px;color:rgba(20,52,47,.8);margin-bottom:5px;">Zona Centro ${nC}% · Zona Periferia ${nP}%</div>
+        <div class="milp-gap">${Math.round(d.naive.parity_gap*100)}% brecha</div>
       </div>
-      <div class="milp-side R"><div class="mh">Fair (MILP + parity)</div>
+      <div class="milp-side R"><div class="mh">Con paridad (MILP)</div>
         <div class="milp-ppl">${grid('fair')}</div>
-        <div style="font-size:12px;color:rgba(20,52,47,.8);margin-bottom:5px;">Group A ${fW}% · Group B ${fL}%</div>
-        <div class="milp-gap">${Math.round(d.fair.parity_gap*100)}% gap</div>
+        <div style="font-size:12px;color:rgba(20,52,47,.8);margin-bottom:5px;">Zona Centro ${fC}% · Zona Periferia ${fP}%</div>
+        <div class="milp-gap">${Math.round(d.fair.parity_gap*100)}% brecha</div>
       </div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;font-weight:600;color:rgba(20,52,47,.82);margin-bottom:12px;">
-      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#1B7A7E;display:inline-block;"></span>Group A</span>
-      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#E8A04C;display:inline-block;"></span>Group B</span>
-      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#E8A04C;opacity:.28;display:inline-block;"></span>faded = unserved</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#1B7A7E;display:inline-block;"></span>Zona Centro</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#E8A04C;display:inline-block;"></span>Zona Periferia</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#E8A04C;opacity:.28;display:inline-block;"></span>desvanecido = sin atender</span>
     </div>
     <p style="font-size:12.5px;line-height:1.55;color:rgba(20,52,47,.65);">${d.explain}</p>`;
 }

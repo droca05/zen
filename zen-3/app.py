@@ -703,7 +703,8 @@ def api_batch_run():
                   "by_group": naive.served_by_group, "parity_gap": naive.parity_gap},
         "fair": {"served": fair.users_served, "total": fair.total_users,
                  "by_group": fair.served_by_group, "parity_gap": fair.parity_gap},
-        "explain": ("Same people, same scarce slots. NAIVE maximizes raw coverage and "
-                    "systematically under-serves the far group. FAIR adds the demographic-"
-                    "parity constraint to the MILP and redistributes — closing the gap."),
+        "explain": ("Mismas familias, mismos lugares escasos. SIN PARIDAD maximiza cobertura "
+                    "total y sistemáticamente deja sin atender a la Zona Periferia (menor "
+                    "puntaje por distancia y falta de transporte). CON PARIDAD el MILP añade "
+                    "la restricción de equidad y redistribuye — cerrando la brecha."),
     }
