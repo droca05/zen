@@ -67,7 +67,7 @@ def build_scarcity_scenario():
                  hours="Mon–Fri 9 am–5 pm", last_verified_days_ago=1),
         Resource(resource_id="R001",
                  name="SW Community Pantry – Fondren",
-                 service_type="food", zip_zone=0, capacity=8,
+                 service_type="food", zip_zone=0, capacity=3,
                  max_income=0, min_household_size=0,
                  hours="Mon–Sat 10 am–4 pm", last_verified_days_ago=2),
     ]
