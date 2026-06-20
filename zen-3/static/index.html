@@ -711,7 +711,7 @@ const S = {
 let pmap=null, omap=null, recording=false, recog=null;
 
 function saveLocal(){try{localStorage.setItem('zen_v2',JSON.stringify({plan:S.plan,tracking:S.tracking,coords:S.coords}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem('zen_v2')||'{}');if(d.plan){S.plan=d.plan;S.tracking=d.tracking;S.coords=d.coords;}}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem('zen_v2')||'{}');if(d.plan){S.plan=d.plan;S.tracking=d.tracking;if(d.coords&&_inHoustonBbox(d.coords[0],d.coords[1]))S.coords=d.coords;}}catch(e){}}
 async function post(p,b){const r=await fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return r.json();}
 async function get(p){const r=await fetch(API+p);return r.json();}
 
@@ -751,11 +751,27 @@ function showTab(t,skipScroll){
   if(!skipScroll)window.scrollTo({top:0,behavior:'smooth'});
 }
 
+const _HOUSTON_BBOX={s:29.5,w:-95.8,n:30.1,e:-95.1};
+const _HOUSTON_CENTER=[29.7604,-95.3698];
+function _inHoustonBbox(lat,lon){return lat>=_HOUSTON_BBOX.s&&lat<=_HOUSTON_BBOX.n&&lon>=_HOUSTON_BBOX.w&&lon<=_HOUSTON_BBOX.e;}
 function askGeo(){
-  if(!navigator.geolocation){setGeoText('No location — using default area.');S.coords=[29.7604,-95.3698];return;}
+  if(!navigator.geolocation){
+    S.coords=_HOUSTON_CENTER;
+    setGeoText('Houston, TX — simulated location for demo');
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
-    p=>{S.coords=[p.coords.latitude,p.coords.longitude];saveLocal();setGeoText('Location found — showing help near you.');},
-    ()=>{setGeoText('No location — using default area. You can still continue.');S.coords=[29.7604,-95.3698];}
+    p=>{
+      const lat=p.coords.latitude,lon=p.coords.longitude;
+      if(_inHoustonBbox(lat,lon)){
+        S.coords=[lat,lon];saveLocal();
+        setGeoText('Location found — showing help near you.');
+      } else {
+        S.coords=_HOUSTON_CENTER;
+        setGeoText('Houston, TX — simulated location for demo');
+      }
+    },
+    ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — simulated location for demo');}
   );
 }
 function setGeoText(t){const el=document.getElementById('geo-text');if(el)el.textContent=t;}
