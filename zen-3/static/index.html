@@ -394,8 +394,10 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
       <div id="conf-tags" style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:22px;"></div>
       <div id="conf-action"></div>
 
-      <button id="btn-confirm" class="zen-btn primary" onclick="goFollowups()" style="margin-bottom:12px;">Yes, that's right</button>
-      <button class="zen-btn ghost" onclick="goScreen('situation')">Let me correct it</button>
+      <div style="margin-top:20px;">
+        <button id="btn-confirm" class="zen-btn primary" onclick="goFollowups()" style="margin-bottom:12px;">Yes, that's right</button>
+        <button class="zen-btn ghost" onclick="goScreen('situation')">Let me correct it</button>
+      </div>
     </div>
 
     <!-- ─ ELIGIBILITY QUESTIONS ─ -->
@@ -554,7 +556,7 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
           </div>
 
           <span class="zen-sublabel">Address <span style="color:#D9735A;">*</span></span>
-          <input id="ong-address" class="zen-input" placeholder="e.g. Av. Garza Sada 2501, Monterrey" style="margin-bottom:16px;">
+          <input id="ong-address" class="zen-input" placeholder="e.g. 535 Westheimer Rd, Houston, TX 77006" style="margin-bottom:16px;">
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
             <div>
@@ -564,12 +566,12 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
             <div>
               <span class="zen-sublabel">Service area</span>
               <select id="ong-zone" class="zen-input" style="cursor:pointer;">
-                <option value="2">Centro-Poniente</option>
-                <option value="3">Centro-Oriente</option>
-                <option value="0">Sur-Poniente</option>
-                <option value="1">Sur-Oriente</option>
-                <option value="4">Norte-Poniente</option>
-                <option value="5">Norte-Oriente</option>
+                <option value="3">Inner Loop – Midtown/Downtown</option>
+                <option value="2">Inner Loop – Galleria/River Oaks</option>
+                <option value="0">SW Houston – Fondren/Bellaire</option>
+                <option value="1">SE Houston – South Park/Hobby</option>
+                <option value="4">NW Houston – Spring Branch</option>
+                <option value="5">NE Houston – Acres Homes</option>
               </select>
             </div>
           </div>
@@ -997,7 +999,22 @@ function renderTracker(){
         <div><div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:700;color:rgba(20,52,47,.45);margin-bottom:3px;">Website</div><div style="font-size:13px;">${web}</div></div>
       </div>
       ${p.bring?`<div style="font-size:13px;color:rgba(20,52,47,.8);margin-bottom:14px;"><b>What to bring:</b> ${p.bring}</div>`:''}
-      ${p.phase<3?`<button class="zen-btn ghost sm" onclick="advanceTrack('${p.resource_id}')">Mark as "${PHASES[p.phase+1]}"</button>`:'<div class="zen-ok">✓ The loop closed — you received help</div>'}
+      ${p.phase<3?`
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+          <button class="zen-btn ghost sm" onclick="advanceTrack('${p.resource_id}')">✓ Mark as "${PHASES[p.phase+1]}"</button>
+          <button onclick="markFailed('${p.resource_id}')" style="flex:none;border:1.5px solid rgba(217,115,90,.5);background:#fff;color:#8A3A22;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:10px;">✗ Didn't work</button>
+        </div>
+        <div id="fail-${p.resource_id}" style="display:none;margin-top:12px;background:rgba(217,115,90,.07);border:1.5px solid rgba(217,115,90,.35);border-radius:12px;padding:14px;">
+          <div style="font-size:13px;font-weight:700;color:#0F3A3D;margin-bottom:4px;">Get caseworker support for this step</div>
+          <div style="font-size:12.5px;color:rgba(20,52,47,.65);margin-bottom:10px;">Leave a contact and a caseworker will follow up personally.</div>
+          <div style="font-size:12px;color:rgba(20,52,47,.5);margin-bottom:6px;">At least one is required.</div>
+          <input id="fail-phone-${p.resource_id}" type="tel" class="zen-input" placeholder="Phone number" style="margin-bottom:8px;background:#fff;">
+          <input id="fail-email-${p.resource_id}" type="email" class="zen-input" placeholder="Email address" style="margin-bottom:8px;background:#fff;">
+          <textarea id="fail-msg-${p.resource_id}" class="zen-input" placeholder="What happened? (optional)" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" style="margin-bottom:10px;background:#fff;resize:none;overflow:hidden;font-family:inherit;font-size:14px;line-height:1.5;"></textarea>
+          <button class="zen-btn primary sm" onclick="submitFail('${p.resource_id}')">Request caseworker support</button>
+          <div id="fail-out-${p.resource_id}" style="font-size:12px;margin-top:6px;"></div>
+        </div>`
+      :'<div class="zen-ok">✓ The loop closed — you received help</div>'}
     </div>`;
   }).join('');
   const anyOpen=S.plan.some(p=>p.phase<3);
@@ -1032,6 +1049,23 @@ async function escalateToCW(){
   }
 }
 function advanceTrack(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();renderTracker();}
+function markFailed(rid){const el=document.getElementById('fail-'+rid);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+async function submitFail(rid){
+  const phone=(document.getElementById('fail-phone-'+rid)||{}).value||'';
+  const email=(document.getElementById('fail-email-'+rid)||{}).value||'';
+  const msg=(document.getElementById('fail-msg-'+rid)||{}).value||'';
+  const out=document.getElementById('fail-out-'+rid);
+  if(!phone&&!email){out.innerHTML='<span style="color:#D9735A;">Please enter at least a phone number or email.</span>';return;}
+  const btns=document.querySelectorAll(`[onclick="submitFail('${rid}')"]`);
+  btns.forEach(b=>{b.disabled=true;b.textContent='Sending…';});
+  try{
+    await post('/api/checkin',{user_id:S.tracking||'anon',resource_id:rid,received_help:false,contact_phone:phone,contact_email:email,user_message:msg||'Step failed — needs caseworker follow-up'});
+    document.getElementById('fail-'+rid).innerHTML='<div class="zen-ok" style="margin:0;">✓ Request sent. A caseworker will contact you at '+(phone||email)+'.</div>';
+  }catch(e){
+    btns.forEach(b=>{b.disabled=false;b.textContent='Request caseworker support';});
+    if(out)out.innerHTML='<span style="color:#D9735A;">Could not send — check your connection.</span>';
+  }
+}
 function dismissPlan(rid){if(!confirm('Remove this program from your list?'))return;S.plan=S.plan.filter(x=>x.resource_id!==rid);saveLocal();renderTracker();if(S.tracking)post('/api/case/save',{tracking:S.tracking,plan:S.plan,email:S.email,ong_consent:S.ongConsent});}
 function followMsg(p){
   const steps=p.steps||[];
