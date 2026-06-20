@@ -326,9 +326,16 @@ def api_dashboard():
         by_service[st] = {"assigned": n, "closure_rate": closure[st]}
     total_assigned = sum(v["assigned"] for v in by_service.values()) or 1
     overall = round(sum(v["assigned"]*v["closure_rate"] for v in by_service.values())/total_assigned, 2)
+    # All simulated metrics derived from the same MILP run so they are consistent
+    confirmed   = round(fair.users_served * overall)
+    still_without = fair.users_served - confirmed   # matched but help not confirmed
+    unmatched   = fair.total_users - fair.users_served  # no resource available at all
     return {
         "people_matched": fair.users_served, "total_people": fair.total_users,
         "overall_loop_closure": overall, "closure_by_service": by_service,
+        "confirmed_help": confirmed,
+        "still_without_help": still_without,
+        "unmatched": unmatched,
         "equity_audit": fair.served_by_group, "parity_gap": fair.parity_gap,
         "parity_maintained": fair.parity_gap <= 0.10,
         "escalations": _real_escalation_counts(),
