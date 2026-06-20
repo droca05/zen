@@ -57,29 +57,29 @@ REASON_LABEL = {
 
 
 def _seed():
-    """Casos iniciales de demostración — Área Metropolitana de Monterrey."""
+    """Demo escalations — Houston, TX area."""
     now = datetime.now()
     return [
         {"id": "C001", "user_hash": "u_8f3a", "reason": "safety", "safety_flag": True,
-         "summary": "Menciona violencia doméstica; necesita salir de casa esta noche con sus hijos",
+         "summary": "Reports domestic violence; needs to leave home tonight with two children",
          "urgency": "today", "has_children": True,
          "flagged_at": (now - timedelta(minutes=6)).isoformat(),
          "status": "open", "language": "Spanish"},
         {"id": "C002", "user_hash": "u_2b91", "reason": "broken_loop", "safety_flag": False,
-         "summary": "Fue al banco de alimentos DIF pero ya estaba cerrado; familia sin comer hoy",
+         "summary": "Houston Food Bank was at capacity when they arrived; family has not eaten today",
          "urgency": "today", "has_children": True,
          "flagged_at": (now - timedelta(hours=3)).isoformat(),
          "status": "open", "language": "Spanish"},
         {"id": "C003", "user_hash": "u_d7c4", "reason": "low_confidence", "safety_flag": False,
-         "summary": "Habla náhuatl como primera lengua; transcripción poco clara en necesidad de vivienda",
+         "summary": "Primary language Vietnamese; transcript unclear on housing eviction timeline",
          "urgency": "this_week", "has_children": False, "no_id": True,
          "flagged_at": (now - timedelta(hours=1)).isoformat(),
-         "status": "open", "language": "Indigena"},
+         "status": "open", "language": "Other"},
         {"id": "C004", "user_hash": "u_5e22", "reason": "broken_loop", "safety_flag": False,
-         "summary": "La clínica IMSS no contestó; sigue sin atención médica para su bebé",
+         "summary": "Legacy Community Health did not pick up; infant still without medical care",
          "urgency": "this_week", "has_children": True,
          "flagged_at": (now - timedelta(hours=20)).isoformat(),
-         "status": "open", "language": "Spanish"},
+         "status": "open", "language": "English"},
     ]
 
 

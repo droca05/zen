@@ -43,7 +43,7 @@ SELECTORS = {
 }
 
 
-def scrape_osm(bbox: str = "25.5,-100.6,25.9,-100.1", max_per_type: int = 8) -> list[dict]:
+def scrape_osm(bbox: str = "29.5,-95.8,30.1,-95.1", max_per_type: int = 8) -> list[dict]:
     """
     Fetch real community resources from OpenStreetMap via Overpass API.
     bbox = "south,west,north,east"  (default: Houston, TX)
@@ -197,7 +197,7 @@ def scrape_live(url: str, max_items: int = 100) -> list[dict]:
 
 
 def _lat_lon_to_zone(lat: float, lon: float,
-                     bbox=(29.5, -95.7, 30.1, -95.1)) -> int:
+                     bbox=(29.5, -95.8, 30.1, -95.1)) -> int:
     """Map a lat/lon to zone 0-5 on a 3×2 grid of the service area."""
     s, w, n, e = bbox
     row = min(2, max(0, int((lat - s) / (n - s) * 3)))
@@ -230,19 +230,20 @@ def _hsds_record(rid, name, service, address, hours, phone,
 
 # ── SEED generator (realistic, no network) ────────────────────────────────────
 SEED_NAMES = {
-    "food": ["Northside Food Bank", "Eastside Community Fridge", "St. Mary's Pantry",
-             "Harvest Hope Center", "Downtown Meal Program", "Riverside Food Shelf"],
-    "housing": ["City Rent Relief Program", "Bridge Housing Services",
-                "Emergency Shelter Network", "Stable Homes Initiative"],
-    "healthcare": ["Community Health Clinic", "Eastside Free Clinic",
-                   "Wellness Access Center", "Neighborhood Care Clinic"],
-    "childcare": ["Childcare Subsidy Office", "Bright Start Daycare Assistance",
-                  "Family Support Childcare"],
-    "employment": ["Job Placement Center", "WorkSource Career Hub",
-                   "Skills & Training Office", "Reemployment Services"],
+    "food": ["Houston Food Bank – Midtown Hub", "SW Community Pantry",
+             "Star of Hope Food Pantry", "Bread of Life Northside",
+             "Catholic Charities Food Shelf", "Neighborhood Table – Acres Homes"],
+    "housing": ["Harris County Rent Relief", "Avenue CDC Housing Assistance",
+                "Midtown Emergency Shelter", "Salvation Army Family Lodge"],
+    "healthcare": ["Legacy Community Health – Heights", "Harris Health Ben Taub",
+                   "Avenue 360 Health & Wellness", "Cristo Rey Community Clinic"],
+    "childcare": ["Child Care Council of Greater Houston", "BakerRipley Early Learning",
+                  "YMCA Child Development Center"],
+    "employment": ["Workforce Solutions Gulf Coast", "BakerRipley Career Center",
+                   "Goodwill Job Connection – Houston", "Alliance for Multicultural Services"],
 }
-STREETS = ["Main St", "Oak Ave", "5th Ave", "Elm St", "Park Blvd", "Cedar Ln",
-           "Washington St", "Lincoln Ave", "Market St", "Hill Rd"]
+STREETS = ["Main St", "Westheimer Rd", "Kirby Dr", "Bellaire Blvd", "Fondren Rd",
+           "Shepherd Dr", "Richmond Ave", "Tidwell Rd", "Cullen Blvd", "Antoine Dr"]
 
 
 def scrape_seed() -> list[dict]:
@@ -262,7 +263,7 @@ def scrape_seed() -> list[dict]:
                 url=f"https://findhelp.example.org/program/{slug}",
                 zone=zone,
                 capacity=random.randint(6, 45),
-                max_income=random.choice([0, 1500, 2000, 2500]),
+                max_income=random.choice([0, 1600, 2200, 3000]),
                 min_hh=random.choice([0, 0, 0, 2]),
                 verified_days=random.randint(0, 70),
             ))
@@ -276,8 +277,8 @@ def main():
     ap.add_argument("--osm",  action="store_true", help="fetch real data from OpenStreetMap")
     ap.add_argument("--seed", action="store_true", help="generate seed data (default)")
     ap.add_argument("--url",  default="", help="listing URL for --live")
-    ap.add_argument("--bbox", default="25.5,-100.6,25.9,-100.1",
-                    help="lat/lon bbox for --osm (default: Houston TX). "
+    ap.add_argument("--bbox", default="29.5,-95.8,30.1,-95.1",
+                    help="lat/lon bbox for --osm (default: Houston TX metro). "
                          "Format: south,west,north,east")
     args = ap.parse_args()
 

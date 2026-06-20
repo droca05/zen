@@ -1,16 +1,16 @@
 """
 demo_scenario.py
 ────────────────
-Escenario de escasez para la demo del MILP (pantalla split-screen).
+Scarcity scenario powering the split-screen MILP demo.
 
-La tesis solo se hace visible bajo escasez. Con capacidad abundante todos
-son atendidos y naive == fair. Aquí construimos deliberadamente una situación
-donde un algoritmo greedy (naive) perjudica sistemáticamente a las familias
-de la periferia, y la restricción de paridad demográfica lo corrige.
+The thesis only becomes visible under scarcity. With abundant capacity
+everyone gets served and naive == fair. Here we build a resource-starved
+scenario where a greedy (naive) allocation systematically under-serves
+families in Houston's outer neighborhoods — exactly the VI-SPDAT failure mode.
 
-Contexto: Área Metropolitana de Monterrey, NL.
-  - Zona Centro (zonas 2-3): acceso a transporte, cerca de los recursos principales.
-  - Zona Periferia (zonas 0-1): colonias alejadas, sin auto, peor puntaje de match.
+Context: Houston, TX metro area.
+  - Inner Loop (zones 2-3): near downtown, transit access, higher match scores.
+  - Outer Neighborhoods (zones 0-1): SW/NE Houston, no car, lower match scores.
 
 Author: Steff (Data Science + Math)
 """
@@ -30,74 +30,71 @@ RNG = np.random.default_rng(7)
 
 def build_scarcity_scenario():
     """
-    Escenario realista para Monterrey AMM: dos bancos de alimentos con
-    capacidad insuficiente para todos, y una correlación entre zona geográfica
-    y desventaja de acceso — exactamente el fallo que el VI-SPDAT reproducía.
+    20 households, 2 food banks, 18 total slots — scarcity forces trade-offs.
 
-    Naive: llena primero los matches con mejor puntaje (Centro, con transporte).
-           La periferia queda sistemáticamente sin atención.
-    Fair:  la restricción de paridad fuerza al solver a usar la capacidad del
-           banco periférico para las familias de esa zona. Gap ≤ 10 %.
+    Naive fills the easiest/highest-score matches first (Inner Loop families
+    with cars score higher on proximity). Outer Neighborhood families — farther
+    away, no transport — get systematically left behind.
+
+    Fair: the parity constraint forces the solver to reserve capacity at the
+    SW pantry for the families it actually serves, closing the gap.
     """
     users: list[UserProfile] = []
     uid = 0
 
-    def add(needs, urgency, group, zone, transport, size=4, income=9500):
+    def add(needs, urgency, group, zone, transport, size=3, income=1100):
         nonlocal uid
         users.append(UserProfile(
             user_id=f"U{uid:03d}", needs=needs, urgency=urgency,
             household_size=size, monthly_income=income, race_group=group,
-            language="Spanish", has_transport=transport, zip_zone=zone,
+            language="English", has_transport=transport, zip_zone=zone,
         ))
         uid += 1
 
-    # 10 familias Zona Centro — zona 2, con transporte, mejor puntaje de match
+    # 10 Inner Loop households — zone 3 (Downtown/Midtown), with transport
     for _ in range(10):
-        add(["food"], "this_week", "Centro", zone=2, transport=True, income=11000)
+        add(["food"], "this_week", "Inner Loop", zone=3, transport=True, income=1400)
 
-    # 10 familias Zona Periferia — zona 0, sin transporte, peor puntaje de match
+    # 10 Outer Neighborhood households — zone 0 (SW Houston), no transport
     for _ in range(10):
-        add(["food"], "this_week", "Periferia", zone=0, transport=False, income=7500)
+        add(["food"], "this_week", "Outer Neighborhoods", zone=0, transport=False, income=850)
 
-    # Dos bancos de alimentos: uno central (mayor capacidad) y uno periférico.
-    # El naive llena el central primero (beneficia al grupo Centro);
-    # el fair redistribuye la capacidad periférica hacia las familias periféricas.
     resources = [
         Resource(resource_id="R000",
-                 name="Banco de Alimentos DIF Monterrey",
-                 service_type="food", zip_zone=2, capacity=10,
+                 name="Houston Food Bank – Midtown Hub",
+                 service_type="food", zip_zone=3, capacity=10,
                  max_income=0, min_household_size=0,
-                 hours="Lun–Vie 8–17 h", last_verified_days_ago=1),
+                 hours="Mon–Fri 9 am–5 pm", last_verified_days_ago=1),
         Resource(resource_id="R001",
-                 name="Despensa Comunitaria Santa Catarina",
+                 name="SW Community Pantry – Fondren",
                  service_type="food", zip_zone=0, capacity=8,
                  max_income=0, min_household_size=0,
-                 hours="Lun–Sáb 9–14 h", last_verified_days_ago=3),
+                 hours="Mon–Sat 10 am–4 pm", last_verified_days_ago=2),
     ]
     return users, resources
 
 
 def run():
     users, resources = build_scarcity_scenario()
-    print("ESCENARIO DE ESCASEZ — Monterrey AMM")
-    print("  20 familias (10 Zona Centro con transporte, 10 Zona Periferia sin transporte)")
-    print("  2 bancos de alimentos, capacidad total 18 para 20 familias → escasez forzada\n")
+    print("SCARCITY SCENARIO — Houston, TX")
+    print("  20 households (10 Inner Loop w/ transport, 10 Outer Neighborhoods w/o)")
+    print("  2 food banks, 18 total slots for 20 households → scarcity forces trade-offs\n")
 
     naive = solve(users, resources, fairness=False, max_distance=2.0)
     fair  = solve(users, resources, fairness=True, parity_delta=0.10, max_distance=2.0)
 
     def summary(tag, res):
-        c = res.served_by_group.get("Centro", 0)
-        p = res.served_by_group.get("Periferia", 0)
+        i = res.served_by_group.get("Inner Loop", 0)
+        o = res.served_by_group.get("Outer Neighborhoods", 0)
         print(f"{tag}")
-        print(f"  atendidos total: {res.users_served}/{res.total_users}")
-        print(f"  Zona Centro atendida:    {c:.0%}")
-        print(f"  Zona Periferia atendida: {p:.0%}")
-        print(f"  brecha de paridad: {res.parity_gap:.0%}")
+        print(f"  served total: {res.users_served}/{res.total_users}")
+        print(f"  Inner Loop served:         {i:.0%}")
+        print(f"  Outer Neighborhoods served:{o:.0%}")
+        print(f"  parity gap: {res.parity_gap:.0%}")
         print()
 
-    summary("── NAIVE (solo utilidad) ──", naive)
-    summary("── FAIR (paridad demográfica) ──", fair)
+    summary("── NAIVE (utility only) ──", naive)
+    summary("── FAIR (demographic parity) ──", fair)
     return naive, fair
 
 

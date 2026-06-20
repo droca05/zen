@@ -42,8 +42,8 @@ from db import get_sb
 # Needs treated as time-critical emergencies (real-time heuristic path).
 EMERGENCY_NEEDS = {"food", "housing"}
 
-# Service-area grid for Monterrey, NL (matches OSM scraper --bbox below)
-_AREA_BBOX = (25.5, -100.6, 25.9, -100.1)   # south, west, north, east
+# Service-area grid for Houston, TX metro (matches OSM scraper --bbox below)
+_AREA_BBOX = (29.5, -95.8, 30.1, -95.1)   # south, west, north, east
 
 
 def _coords_to_zone(lat: float, lon: float) -> int:
@@ -483,9 +483,9 @@ def api_forecast():
     shortfalls = [r for r in full if r["gap"] > 0][:6]
     # zone centers (illustrative, around a default city) for the heat map
     ZONE_COORDS = {
-        0: [25.57, -100.45], 1: [25.57, -100.20],
-        2: [25.70, -100.45], 3: [25.70, -100.20],
-        4: [25.83, -100.45], 5: [25.83, -100.20],
+        0: [29.57, -95.65], 1: [29.57, -95.25],
+        2: [29.73, -95.65], 3: [29.73, -95.25],
+        4: [29.89, -95.65], 5: [29.89, -95.25],
     }
     # aggregate worst gap per zone for the map coloring
     zone_gap = {}
@@ -703,8 +703,8 @@ def api_batch_run():
                   "by_group": naive.served_by_group, "parity_gap": naive.parity_gap},
         "fair": {"served": fair.users_served, "total": fair.total_users,
                  "by_group": fair.served_by_group, "parity_gap": fair.parity_gap},
-        "explain": ("Mismas familias, mismos lugares escasos. SIN PARIDAD maximiza cobertura "
-                    "total y sistemáticamente deja sin atender a la Zona Periferia (menor "
-                    "puntaje por distancia y falta de transporte). CON PARIDAD el MILP añade "
-                    "la restricción de equidad y redistribuye — cerrando la brecha."),
+        "explain": ("Same households, same scarce slots. NAIVE maximizes raw coverage and "
+                    "systematically under-serves Outer Neighborhoods (lower score due to "
+                    "distance and no transport — the exact VI-SPDAT failure mode). FAIR adds "
+                    "the demographic-parity constraint and redistributes — closing the gap."),
     }

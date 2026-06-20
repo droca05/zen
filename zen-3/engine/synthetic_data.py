@@ -31,9 +31,9 @@ RNG = np.random.default_rng(42)
 random.seed(42)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# INEGI/ENIGH-INFORMED MARGINAL DISTRIBUTIONS — Área Metropolitana de Monterrey
-# (Rounded from ENIGH 2022 and INEGI Censo 2020 for low-income households in NL.
-#  Replace with a real PUMS + IPF draw over INEGI microdata in production.)
+# ACS-INFORMED MARGINAL DISTRIBUTIONS — Harris County / Houston, TX
+# (Rounded from ACS 2019-2023 5-year estimates for low-income households.
+#  Replace with a real PUMS + IPF draw in production.)
 # ──────────────────────────────────────────────────────────────────────────────
 
 CRISIS_TYPES = ["food", "housing", "healthcare", "childcare", "employment"]
@@ -47,15 +47,14 @@ NEED_PREVALENCE = {
     "employment": 0.46,
 }
 
-# Geographic/socioeconomic groups — the *sensitive attribute* for fairness.
-# In Monterrey the key equity axis is spatial: established urban vs. periurban.
+# Race/ethnicity marginals — Harris County (ACS 2023).
 # These are the groups the demographic-parity constraint will protect.
-RACE_GROUPS = ["Centro", "Periferia", "Migrante", "Indigena", "Otro"]
-RACE_WEIGHTS = [0.30, 0.42, 0.17, 0.07, 0.04]
+RACE_GROUPS = ["Hispanic", "Black", "White", "Asian", "Other"]
+RACE_WEIGHTS = [0.44, 0.22, 0.25, 0.07, 0.02]
 
-# Primary language (Monterrey AMM — INEGI Censo 2020).
-LANGUAGES = ["Spanish", "Indigena", "English", "Other"]
-LANG_WEIGHTS = [0.88, 0.07, 0.03, 0.02]
+# Primary language — Houston metro (ACS 2023).
+LANGUAGES = ["English", "Spanish", "Vietnamese", "Other"]
+LANG_WEIGHTS = [0.52, 0.39, 0.05, 0.04]
 
 URGENCY_LEVELS = ["today", "this_week", "this_month"]
 URGENCY_WEIGHTS = [0.28, 0.44, 0.28]
@@ -93,9 +92,9 @@ def generate_users(n: int = 200, n_zones: int = 6) -> list[UserProfile]:
     users = []
     for i in range(n):
         size = int(RNG.choice([1, 2, 3, 4, 5, 6], p=[0.18, 0.24, 0.22, 0.18, 0.12, 0.06]))
-        # Income in MXN/month — low-income skew for Monterrey AMM (ENIGH 2022)
-        base = RNG.normal(9000, 3500)
-        income = max(0, int(base + size * RNG.normal(1800, 700)))
+        # Income in USD/month — low-income skew for Harris County (ACS 2023)
+        base = RNG.normal(1200, 480)
+        income = max(0, int(base + size * RNG.normal(240, 95)))
         users.append(UserProfile(
             user_id=f"U{i:04d}",
             needs=_sample_needs(),
@@ -151,8 +150,8 @@ def generate_resources(n_zones: int = 6) -> list[Resource]:
                 service_type=stype,
                 zip_zone=zone,
                 capacity=int(cap),
-                # ~half the programs have an income ceiling (MXN/month); rest open
-                max_income=int(RNG.choice([0, 12000, 16000, 20000], p=[0.4, 0.2, 0.2, 0.2])),
+                # ~half the programs have an income ceiling (USD/month); rest open
+                max_income=int(RNG.choice([0, 1500, 2000, 2500], p=[0.4, 0.2, 0.2, 0.2])),
                 min_household_size=int(RNG.choice([0, 0, 0, 2])),
                 hours=RNG.choice(["Mon-Fri 9-5", "Daily 8-8", "Mon-Sat 10-4", "Apply online"]),
                 last_verified_days_ago=int(RNG.integers(0, 75)),  # freshness varies
