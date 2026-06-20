@@ -1017,36 +1017,7 @@ function renderTracker(){
       :'<div class="zen-ok">✓ The loop closed — you received help</div>'}
     </div>`;
   }).join('');
-  const anyOpen=S.plan.some(p=>p.phase<3);
-  document.getElementById('track-escalate').innerHTML=anyOpen?`
-    <div class="card-white" style="margin-top:6px;border:1.5px solid rgba(217,115,90,.35);">
-      <div style="font-size:14px;font-weight:700;color:#0F3A3D;margin-bottom:6px;">Still not getting help?</div>
-      <div style="font-size:13px;color:rgba(20,52,47,.7);margin-bottom:14px;">Leave your phone or email and a caseworker will personally follow up with you.</div>
-      <div id="esc-form">
-        <div style="font-size:12px;color:rgba(20,52,47,.55);margin-bottom:8px;">At least one contact method is required.</div>
-        <input id="esc-phone" type="tel" class="zen-input" placeholder="Phone number" style="margin-bottom:10px;background:#fff;">
-        <input id="esc-email" type="email" class="zen-input" placeholder="Email address" style="margin-bottom:10px;background:#fff;">
-        <textarea id="esc-msg" class="zen-input" placeholder="Describe what happened or what you still need (optional)" rows="2" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" style="margin-bottom:14px;background:#fff;resize:none;overflow:hidden;font-family:inherit;font-size:14px;line-height:1.5;"></textarea>
-        <button class="zen-btn primary" onclick="escalateToCW()">Request caseworker support</button>
-        <div id="esc-out" style="font-size:12px;margin-top:8px;"></div>
-      </div>
-    </div>`:'';
-}
-async function escalateToCW(){
-  const phone=(document.getElementById('esc-phone')||{}).value||'';
-  const email=(document.getElementById('esc-email')||{}).value||'';
-  const msg=(document.getElementById('esc-msg')||{}).value||'';
-  if(!phone&&!email){document.getElementById('esc-out').innerHTML='<span style="color:#D9735A;">Please enter at least a phone number or email.</span>';return;}
-  const rid=(S.plan.find(p=>p.phase<3)||{}).resource_id||'unknown';
-  const btn=document.querySelector('[onclick="escalateToCW()"]');
-  if(btn){btn.disabled=true;btn.textContent='Sending…';}
-  try{
-    await post('/api/checkin',{user_id:S.tracking||'anon',resource_id:rid,received_help:false,contact_phone:phone,contact_email:email,user_message:msg});
-    document.getElementById('esc-form').innerHTML=`<div class="zen-ok">✓ Request sent. A caseworker will contact you at ${phone||email}.</div>`;
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='Request caseworker support';}
-    document.getElementById('esc-out').innerHTML='<span style="color:#D9735A;">Could not send — check your connection and try again.</span>';
-  }
+  document.getElementById('track-escalate').innerHTML='';
 }
 function advanceTrack(rid){const p=S.plan.find(x=>x.resource_id===rid);if(!p)return;p.phase=Math.min(p.phase+1,3);saveLocal();renderTracker();}
 function markFailed(rid){const el=document.getElementById('fail-'+rid);if(el)el.style.display=el.style.display==='none'?'block':'none';}
