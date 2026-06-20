@@ -363,10 +363,17 @@ def api_checkin(req: CheckinReq):
 def _real_escalation_counts() -> dict:
     """Read actual escalation counts from the persistent store."""
     all_cases = cw._load()
+    total = len(all_cases)
+    resolved = sum(1 for c in all_cases if c.get("status") == "resolved")
     return {
         "safety_critical": sum(1 for c in all_cases if c.get("reason") == "safety"),
         "low_confidence": sum(1 for c in all_cases if c.get("reason") == "low_confidence"),
-        "broken_loop": sum(1 for c in all_cases if c.get("reason") == "broken_loop"),
+        # Only open broken-loop cases — resolved ones already got help
+        "broken_loop": sum(1 for c in all_cases
+                           if c.get("reason") == "broken_loop" and c.get("status") == "open"),
+        "resolved": resolved,
+        "total": total,
+        "resolution_rate": round(resolved / total, 2) if total else 0.0,
     }
 
 

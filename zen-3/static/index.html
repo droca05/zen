@@ -1125,10 +1125,10 @@ async function loadOrg(){
   if(orgLoaded){setTimeout(()=>{if(omap)omap.invalidateSize();},200);return;}
   orgLoaded=true;
   const d=await get('/api/dashboard');
-  const SVC_ICON={food:'🥗',housing:'🏠',healthcare:'🏥',childcare:'👶',employment:'💼'};
   const brokenLoop=d.escalations.broken_loop||0;
   const safety=d.escalations.safety_critical||0;
-  const matchPct=d.total_people?Math.round(d.people_matched/d.total_people*100):0;
+  const resPct=Math.round((d.escalations.resolution_rate||0)*100);
+  const total=d.escalations.total||0;
   const svcBars=Object.entries(d.closure_by_service||{}).map(([s,v])=>{
     const pct=Math.round((v.closure_rate||0)*100);
     const barColor=pct>=80?'#1B7A7E':pct>=65?'#E8A04C':'#D9735A';
@@ -1145,12 +1145,15 @@ async function loadOrg(){
     <div class="kpi-grid">
       <div class="kpi-box"><b>${d.people_matched}<span style="font-size:13px;font-weight:600;color:rgba(20,52,47,.5);"> / ${d.total_people}</span></b><small>people helped</small></div>
       <div class="kpi-box"><b>${Math.round(d.overall_loop_closure*100)}%</b><small>help confirmed</small></div>
-      <div class="kpi-box"><b style="color:${brokenLoop>0?'#D9735A':'#1B7A7E'};">${brokenLoop}</b><small>didn't get help</small></div>
-      <div class="kpi-box"><b style="color:${safety>0?'#D9735A':'#1B7A7E'};">${safety}</b><small>safety alerts</small></div>
+      <div class="kpi-box"><b style="color:${brokenLoop>0?'#D9735A':'#1B7A7E'};">${brokenLoop}</b><small>still without help</small></div>
+      <div class="kpi-box"><b style="color:${resPct>=70?'#1B7A7E':resPct>=40?'#E8A04C':'#D9735A'};">${resPct}%</b><small>cases resolved</small><span style="font-size:11px;color:rgba(20,52,47,.45);margin-top:2px;">${d.escalations.resolved||0} of ${total}</span></div>
     </div>
     <div style="margin-top:20px;">
-      <span class="zen-sublabel">Confirmed help by service</span>
-      <div style="margin-top:10px;">${svcBars}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span class="zen-sublabel" style="margin-bottom:0;">Confirmed help by service</span>
+        <span style="font-size:11px;font-weight:600;color:rgba(20,52,47,.4);background:#F0EDE6;padding:3px 8px;border-radius:99px;">Simulated data</span>
+      </div>
+      <div>${svcBars}</div>
     </div>`;
   const fc=await get('/api/forecast');
   if(!omap){omap=L.map('ongmap').setView([25.6866,-100.3161],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(omap);}
