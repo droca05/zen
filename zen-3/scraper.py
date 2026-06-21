@@ -150,7 +150,7 @@ out center;
         rid += 1
 
     for svc, n in sorted(counts.items()):
-        print(f"  {svc:12s} → {n} results")
+        print(f"  {svc:12s} : {n} results")
     return records
 
 

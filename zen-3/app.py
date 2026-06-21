@@ -19,7 +19,7 @@ Routes
 """
 
 from __future__ import annotations
-import json, math, os
+import asyncio, json, math, os
 from datetime import datetime
 from typing import Optional
 
@@ -80,7 +80,7 @@ async def startup():
         count = sb.table("resources").select("resource_id", count="exact").execute().count
         print(f"[zen] ✓ Supabase connected — {count} resources in DB")
     else:
-        print("[zen] ⚠  Supabase NOT configured — using local JSON files")
+        print("[zen] WARNING: Supabase NOT configured - using local JSON files")
 
 
 # ── load resources: Supabase when configured, local JSON as fallback ──────────
