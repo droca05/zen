@@ -523,8 +523,8 @@ setInterval(()=>{
       <h2 class="screen-h">Your plan</h2>
       <div id="route-banner"></div>
       <p style="font-size:14.5px;line-height:1.55;color:rgba(20,52,47,.82);margin-bottom:18px;">What to do, in order. Tap <b>?</b> on any card to see why you qualify.</p>
-      <div id="plan-list"><div class="spinner">Optimizing your matches…</div></div>
       <div id="save-box"></div>
+      <div id="plan-list"><div class="spinner">Optimizing your matches…</div></div>
     </div>
 
     <!-- ─ CONFIRMATION ─ -->
@@ -631,13 +631,12 @@ setInterval(()=>{
     <label>Password</label><input id="org-pwd" type="password" placeholder="••••••••">
     <div id="org-err" style="display:none;color:#C05040;font-size:13px;font-weight:600;margin:-8px 0 12px;text-align:center;"></div>
     <button class="lc-btn" onclick="loginOrg()">Sign in</button>
-    <div style="margin-top:18px;background:#F0F7F4;border:1px solid rgba(27,122,126,.25);border-radius:12px;padding:12px 14px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#1B7A7E;margin-bottom:7px;">Demo credentials</div>
-      <div style="font-size:13px;color:#0F3A3D;line-height:1.7;">
+    <div style="margin-top:18px;background:#F0F7F4;border:1px solid rgba(27,122,126,.25);border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-size:13px;color:#0F3A3D;line-height:1.8;">
         <span style="font-weight:700;">Email:</span> org@zen.com<br>
         <span style="font-weight:700;">Password:</span> zen2026
       </div>
-      <button onclick="document.getElementById('org-email').value='org@zen.com';document.getElementById('org-pwd').value='zen2026';" style="margin-top:8px;border:1px solid rgba(27,122,126,.4);background:#fff;color:#1B7A7E;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:12px;padding:6px 14px;border-radius:8px;">Fill in</button>
+      <button onclick="document.getElementById('org-email').value='org@zen.com';document.getElementById('org-pwd').value='zen2026';" style="margin-top:10px;border:1px solid rgba(27,122,126,.4);background:#fff;color:#1B7A7E;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:12px;padding:7px 18px;border-radius:8px;">Fill in</button>
     </div>
   </div>
   <div id="org-dash" style="display:none;width:100%;">
@@ -769,13 +768,12 @@ setInterval(()=>{
     <label>Password</label><input id="cw-pwd" type="password" placeholder="••••••••">
     <div id="cw-err" style="display:none;color:#C05040;font-size:13px;font-weight:600;margin:-8px 0 12px;text-align:center;"></div>
     <button class="lc-btn" onclick="loginCw()">Sign in</button>
-    <div style="margin-top:18px;background:#F0F7F4;border:1px solid rgba(27,122,126,.25);border-radius:12px;padding:12px 14px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#1B7A7E;margin-bottom:7px;">Demo credentials</div>
-      <div style="font-size:13px;color:#0F3A3D;line-height:1.7;">
+    <div style="margin-top:18px;background:#F0F7F4;border:1px solid rgba(27,122,126,.25);border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-size:13px;color:#0F3A3D;line-height:1.8;">
         <span style="font-weight:700;">Email:</span> caseworker@zen.com<br>
         <span style="font-weight:700;">Password:</span> zen2026
       </div>
-      <button onclick="document.getElementById('cw-email').value='caseworker@zen.com';document.getElementById('cw-pwd').value='zen2026';" style="margin-top:8px;border:1px solid rgba(27,122,126,.4);background:#fff;color:#1B7A7E;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:12px;padding:6px 14px;border-radius:8px;">Fill in</button>
+      <button onclick="document.getElementById('cw-email').value='caseworker@zen.com';document.getElementById('cw-pwd').value='zen2026';" style="margin-top:10px;border:1px solid rgba(27,122,126,.4);background:#fff;color:#1B7A7E;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:12px;padding:7px 18px;border-radius:8px;">Fill in</button>
     </div>
   </div>
   <div id="cw-dash" style="display:none;width:100%;">
@@ -1058,8 +1056,9 @@ function toggleWhy(i){document.getElementById('why'+i).classList.toggle('open');
 
 function renderSaveBox(){
   document.getElementById('save-box').innerHTML=`
-    <div class="card-white" style="margin-top:20px;">
+    <div class="card-white" style="margin-bottom:18px;">
       <button class="zen-btn primary" onclick="saveCase()">Save my case</button>
+      <p style="font-size:12.5px;color:rgba(20,52,47,.6);line-height:1.5;margin-top:10px;text-align:center;">All cases are saved privately and linked to a unique case number. Add your email to receive follow-up reminders.</p>
       <div id="save-out"></div>
     </div>`;
 }
