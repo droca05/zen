@@ -19,7 +19,7 @@ Routes
 """
 
 from __future__ import annotations
-import json, os
+import asyncio, json, math, os
 from datetime import datetime
 from typing import Optional
 
@@ -42,13 +42,76 @@ from db import get_sb
 # Needs treated as time-critical emergencies (real-time heuristic path).
 EMERGENCY_NEEDS = {"food", "housing"}
 
-# Service-area grid for Houston, TX metro (matches OSM scraper --bbox below)
-_AREA_BBOX = (29.5, -95.8, 30.1, -95.1)   # south, west, north, east
+# Columns that exist in the Supabase resources table.
+_SB_COLS = {"resource_id","name","service_type","address","hours","phone","url",
+            "zip_zone","capacity","max_income","min_household_size","last_verified_days_ago",
+            "lat","lon"}
+
+_BOOTSTRAP_RADIUS_KM = 10.0
+
+# Federal programs available in all 50 states — used when no local OSM data found.
+_NATIONAL_RESOURCES: list[dict] = [
+    {"resource_id": "NAT001", "name": "SNAP (Food Stamps)",
+     "service_type": "food", "zip_zone": 0, "capacity": 9999,
+     "max_income": 2500, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Apply online or at your local SNAP office — fns.usda.gov/snap",
+     "phone": "1-800-221-5689", "hours": "Mon-Fri 8am-5pm (offices vary by state)", "url": ""},
+    {"resource_id": "NAT002", "name": "Medicaid / CHIP",
+     "service_type": "healthcare", "zip_zone": 0, "capacity": 9999,
+     "max_income": 1800, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Apply at healthcare.gov or your state Medicaid office",
+     "phone": "1-877-267-2323", "hours": "Available online 24/7", "url": ""},
+    {"resource_id": "NAT003", "name": "WIC (Women, Infants & Children)",
+     "service_type": "food", "zip_zone": 0, "capacity": 9999,
+     "max_income": 1900, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Find your local WIC clinic — wic.fns.usda.gov",
+     "phone": "1-800-522-0874", "hours": "Mon-Fri 8am-5pm (clinics vary by county)", "url": ""},
+    {"resource_id": "NAT004", "name": "Section 8 Housing Voucher (HUD)",
+     "service_type": "housing", "zip_zone": 0, "capacity": 9999,
+     "max_income": 2000, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Apply at your local Public Housing Authority (PHA) — hud.gov",
+     "phone": "1-800-955-2232", "hours": "Mon-Fri 8am-5pm (PHA varies by city)", "url": ""},
+    {"resource_id": "NAT005", "name": "LIHEAP (Home Energy Assistance)",
+     "service_type": "housing", "zip_zone": 0, "capacity": 9999,
+     "max_income": 1500, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Find your local office — liheapch.acf.hhs.gov",
+     "phone": "1-866-674-6327", "hours": "Mon-Fri 8am-5pm", "url": ""},
+    {"resource_id": "NAT006", "name": "Head Start / Early Head Start",
+     "service_type": "childcare", "zip_zone": 0, "capacity": 9999,
+     "max_income": 1800, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Find your local program — eclkc.ohs.acf.hhs.gov/center-locator",
+     "phone": "1-866-763-6481", "hours": "Mon-Fri 7am-6pm (centers vary)", "url": ""},
+    {"resource_id": "NAT007", "name": "American Job Centers (Employment)",
+     "service_type": "employment", "zip_zone": 0, "capacity": 9999,
+     "max_income": 0, "min_household_size": 0, "last_verified_days_ago": 0,
+     "address": "Find the nearest center — careeronestop.org/LocalHelp",
+     "phone": "1-877-872-5627", "hours": "Mon-Fri 8am-5pm", "url": ""},
+]
+_NATIONAL_IDS = [r["resource_id"] for r in _NATIONAL_RESOURCES]
 
 
-def _coords_to_zone(lat: float, lon: float) -> int:
-    """Map user lat/lon to zone 0-5 on the 3×2 service-area grid."""
-    s, w, n, e = _AREA_BBOX
+def _ensure_national_resources(sb) -> None:
+    """Insert federal programs into Supabase the first time they are needed."""
+    try:
+        existing = {r["resource_id"] for r in
+                    sb.table("resources").select("resource_id")
+                    .in_("resource_id", _NATIONAL_IDS).execute().data}
+        to_insert = [r for r in _NATIONAL_RESOURCES if r["resource_id"] not in existing]
+        if to_insert:
+            sb.table("resources").insert(to_insert).execute()
+    except Exception as e:
+        print(f"[bootstrap] national seed error: {e}")
+
+
+def _bbox_for(lat: float, lon: float, radius_km: float = _BOOTSTRAP_RADIUS_KM):
+    lat_d = radius_km / 111.0
+    lon_d = radius_km / (111.0 * math.cos(math.radians(lat)))
+    return lat - lat_d, lon - lon_d, lat + lat_d, lon + lon_d
+
+
+def _coords_to_zone(lat: float, lon: float, bbox: tuple | None = None) -> int:
+    """Map lat/lon to zone 0-5 on a 3×2 grid of the service area."""
+    s, w, n, e = bbox if bbox else _bbox_for(lat, lon)
     row = min(2, max(0, int((lat - s) / (n - s) * 3)))
     col = min(1, max(0, int((lon - w) / (e - w) * 2)))
     return row * 2 + col
@@ -63,10 +126,11 @@ app = FastAPI(title="Zen — Benefits Navigator API", version="1.0")
 async def startup():
     sb = get_sb()
     if sb:
+        _ensure_national_resources(sb)
         count = sb.table("resources").select("resource_id", count="exact").execute().count
-        print(f"[zen] ✓ Supabase connected — {count} resources in DB")
+        print(f"[zen] Supabase connected — {count} resources in DB")
     else:
-        print("[zen] ⚠  Supabase NOT configured — using local JSON files")
+        print("[zen] WARNING: Supabase NOT configured — using local JSON files")
 
 
 # ── load resources: Supabase when configured, local JSON as fallback ──────────
@@ -172,6 +236,8 @@ class MatchReq(BaseModel):
     zip_zone: int = 1
     lat: Optional[float] = None
     lon: Optional[float] = None
+    bbox_tuple: Optional[list[float]] = None
+    local_resource_ids: Optional[list[str]] = None
     household_size: int = 3
     monthly_income: int = 900
     has_transport: bool = False
@@ -179,6 +245,11 @@ class MatchReq(BaseModel):
     race_group: str = "Latino"
     has_children: bool = False
     priority_housing: bool = False
+
+class BootstrapReq(BaseModel):
+    lat: float
+    lon: float
+    radius_km: float = 10.0
 
 class CheckinReq(BaseModel):
     user_id: str
@@ -242,17 +313,94 @@ def api_followups(req: FollowupReq):
     return interpret(req.answers)
 
 
+@app.post("/api/bootstrap_area")
+async def api_bootstrap_area(req: BootstrapReq):
+    from scraper import scrape_osm, _lat_lon_to_zone
+    loop = asyncio.get_event_loop()
+    records = []
+    used_radius = req.radius_km
+    for radius in [req.radius_km, req.radius_km * 2.5, req.radius_km * 5]:
+        s, w, n, e = _bbox_for(req.lat, req.lon, radius)
+        bbox_str = f"{s:.4f},{w:.4f},{n:.4f},{e:.4f}"
+        records = await loop.run_in_executor(None, scrape_osm, bbox_str)
+        if records:
+            used_radius = radius
+            break
+    bbox_tuple = _bbox_for(req.lat, req.lon, used_radius)
+    if not records:
+        sb = get_sb()
+        if sb:
+            _ensure_national_resources(sb)
+            return {"status": "national_fallback", "found": 0, "new": 0,
+                    "area_ids": _NATIONAL_IDS}
+        return {"status": "no_results", "new": 0, "area_ids": []}
+    for rec in records:
+        if rec.get("lat") and rec.get("lon"):
+            rec["zip_zone"] = _lat_lon_to_zone(rec["lat"], rec["lon"], bbox_tuple)
+    sb = get_sb()
+    if not sb:
+        return {"status": "no_db", "found": len(records), "new": 0, "area_ids": []}
+    all_rows  = sb.table("resources").select("resource_id,name").execute().data
+    name_to_id = {r["name"].lower(): r["resource_id"] for r in all_rows}
+    area_ids: list[str] = []
+    new_recs: list[dict] = []
+    next_idx = len(all_rows)
+    for rec in records:
+        name_key = rec["name"].lower()
+        if name_key in name_to_id:
+            area_ids.append(name_to_id[name_key])
+        else:
+            rid = f"R{next_idx:04d}"
+            next_idx += 1
+            rec["resource_id"] = rid
+            area_ids.append(rid)
+            new_recs.append({k: v for k, v in rec.items() if k in _SB_COLS})
+    if new_recs:
+        try:
+            sb.table("resources").insert(new_recs).execute()
+        except Exception as e:
+            print(f"[bootstrap] insert error: {e}")
+    return {"status": "ok", "found": len(records), "new": len(new_recs), "area_ids": area_ids}
+
+
 @app.post("/api/match")
 def api_match(req: MatchReq):
-    zone = _coords_to_zone(req.lat, req.lon) if req.lat and req.lon else req.zip_zone
+    bbox = tuple(req.bbox_tuple) if req.bbox_tuple else None
+    zone = _coords_to_zone(req.lat, req.lon, bbox) if req.lat and req.lon else req.zip_zone
     user = UserProfile(
         user_id="LIVE", needs=req.needs, urgency=req.urgency,
         household_size=req.household_size, monthly_income=req.monthly_income,
         race_group=req.race_group, language=req.language,
         has_transport=req.has_transport, zip_zone=zone,
     )
-    resources = load_resources()
-    meta = resource_meta()
+    raw_all = _raw_resources()
+    if req.local_resource_ids:
+        id_set = set(req.local_resource_ids)
+        raw = [r for r in raw_all if r["resource_id"] in id_set]
+        # Inject federal programs directly so unmet needs always have a fallback,
+        # even before they are seeded into the DB.
+        in_raw = {r["resource_id"] for r in raw}
+        for nat in _NATIONAL_RESOURCES:
+            if nat["resource_id"] not in in_raw:
+                raw.append(nat)
+        if not raw:
+            raw = raw_all
+    else:
+        raw = raw_all
+    resources = [Resource(
+        resource_id=r["resource_id"], name=r["name"],
+        service_type=r["service_type"],
+        # National programs (NAT*) have no geographic barrier — set to user's zone
+        # so zone_distance is always 0.3 (minimum) regardless of transport status.
+        zip_zone=zone if r.get("resource_id", "").startswith("NAT")
+                 else (int(r["zip_zone"]) if r.get("zip_zone") is not None else 0),
+        capacity=int(r["capacity"]) if r.get("capacity") else 20,
+        max_income=int(r["max_income"]) if r.get("max_income") else 0,
+        min_household_size=int(r["min_household_size"]) if r.get("min_household_size") else 0,
+        hours=r.get("hours") or "",
+        last_verified_days_ago=int(r["last_verified_days_ago"]) if r.get("last_verified_days_ago") else 0,
+    ) for r in raw]
+    meta = {r["resource_id"]: r for r in raw}
     res = solve([user], resources, fairness=True, parity_delta=0.10)
 
     plan = []

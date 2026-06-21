@@ -15,6 +15,7 @@
 @keyframes zenRipple{0%{transform:scale(.85);opacity:.5}100%{transform:scale(1.9);opacity:0}}
 @keyframes zenBreathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.06);opacity:.85}}
 @keyframes zenPulse{0%{box-shadow:0 0 0 0 rgba(217,115,90,.4)}70%{box-shadow:0 0 0 14px rgba(217,115,90,0)}100%{box-shadow:0 0 0 0 rgba(217,115,90,0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scrollbar-gutter:stable;overflow-y:scroll;}
@@ -413,6 +414,8 @@ setInterval(()=>{
       <div style="display:flex;align-items:center;gap:11px;background:#ffffff;border:1px solid rgba(20,52,47,.2);border-radius:14px;padding:13px 16px;font-size:14px;color:rgba(20,52,47,.92);margin-bottom:28px;" id="geo-row">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" style="flex:none;"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z" stroke="#0F3A3D" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="#0F3A3D" stroke-width="1.8"/></svg>
         <span id="geo-text">Requesting location…</span>
+        <svg id="geo-spinner" viewBox="0 0 24 24" width="16" height="16" style="flex:none;display:none;animation:spin 1s linear infinite;margin-left:auto;opacity:.6;"><circle cx="12" cy="12" r="9" fill="none" stroke="#0F3A3D" stroke-width="2.5" stroke-dasharray="28 56" stroke-linecap="round"/></svg>
+        <svg id="geo-check" viewBox="0 0 24 24" width="16" height="16" fill="none" style="flex:none;display:none;margin-left:auto;"><path d="M5 12l5 5L19 7" stroke="#1B7A7E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
 
       <span class="zen-label">What do you need most?</span>
@@ -828,6 +831,7 @@ const PHASES = ['Seen','Requested','Applied','Received'];
 const S = {
   needs:[], urgency:null, agreed:false, intake:null, coords:null,
   plan:[], tracking:null, email:'', ongConsent:false,
+  local_ids:null, bootstrapReady:false,
   answers:{}, refined:{}, ongService:'food',
   personTab:'situation', screen:'start',
   chatReady:false,
@@ -879,24 +883,78 @@ const _HOUSTON_CENTER=[29.7604,-95.3698];
 function _inUSABbox(lat,lon){
   return lat>=25.84&&lat<=49.5&&lon>=-125.0&&lon<=-66.9;
 }
+function _geoSpinner(on){
+  const sp=document.getElementById('geo-spinner'),ck=document.getElementById('geo-check');
+  if(sp)sp.style.display=on?'block':'none';
+  if(ck)ck.style.display='none';
+}
+function _geoDone(text){
+  const sp=document.getElementById('geo-spinner'),ck=document.getElementById('geo-check');
+  if(sp)sp.style.display='none';
+  if(ck)ck.style.display='block';
+  setGeoText(text);
+  S.bootstrapReady=true;
+}
+async function _bootstrapArea(lat,lon){
+  const key=`zen_area_${lat.toFixed(2)}_${lon.toFixed(2)}`;
+  const raw=sessionStorage.getItem(key);
+  if(raw){
+    try{
+      const cached=JSON.parse(raw);
+      if(cached&&cached.area_ids&&cached.area_ids.length){
+        S.local_ids=cached.area_ids;
+        if(cached.national){
+          _geoDone('No local organizations found — showing federal programs available in your state.');
+        } else {
+          _geoDone(`${cached.area_ids.length} local resources loaded.`);
+        }
+        return;
+      }
+    }catch(e){}
+    sessionStorage.removeItem(key);
+  }
+  _geoSpinner(true);
+  setGeoText('Scanning your area for local resources…');
+  try{
+    const r=await post('/api/bootstrap_area',{lat,lon,radius_km:10});
+    if(r.area_ids&&r.area_ids.length){
+      S.local_ids=r.area_ids;
+      const national=r.status==='national_fallback';
+      sessionStorage.setItem(key,JSON.stringify({area_ids:r.area_ids,national}));
+      if(national){
+        _geoDone('No local organizations found — showing federal programs available in your state.');
+      } else {
+        _geoDone(`${r.found} local resources found${r.new?' ('+r.new+' new)':''}.`);
+      }
+    } else {
+      S.local_ids=['NAT001','NAT002','NAT003','NAT004','NAT005','NAT006','NAT007'];
+      _geoDone('No local organizations found — showing federal programs available in your state.');
+    }
+  }catch(e){
+    S.local_ids=['NAT001','NAT002','NAT003','NAT004','NAT005','NAT006','NAT007'];
+    _geoDone('No local data available — showing federal programs available in your state.');
+  }
+}
 function askGeo(){
   if(!navigator.geolocation){
     S.coords=_HOUSTON_CENTER;
     setGeoText('Houston, TX — demo location');
+    S.bootstrapReady=true;
     return;
   }
   navigator.geolocation.getCurrentPosition(
-    p=>{
+    async p=>{
       const lat=p.coords.latitude,lon=p.coords.longitude;
       if(!_inUSABbox(lat,lon)){
         S.coords=_HOUSTON_CENTER;
         setGeoText('Houston, TX — demo location (Zen serves the US)');
+        S.bootstrapReady=true;
         return;
       }
       S.coords=[lat,lon];saveLocal();
-      setGeoText('Location found — showing help near you.');
+      await _bootstrapArea(lat,lon);
     },
-    ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — demo location');}
+    ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — demo location');S.bootstrapReady=true;}
   );
 }
 function setGeoText(t){const el=document.getElementById('geo-text');if(el)el.textContent=t;}
@@ -942,6 +1000,12 @@ function toggleMic(){
 }
 
 async function doIntake(){
+  if(!S.bootstrapReady){
+    const btn=document.getElementById('btn-sit-cont');
+    if(btn){btn.disabled=true;btn.textContent='Loading resources…';}
+    await new Promise(res=>{const iv=setInterval(()=>{if(S.bootstrapReady){clearInterval(iv);res();}},200);});
+    if(btn){btn.disabled=false;btn.textContent='Continue';}
+  }
   let t=document.getElementById('transcript').value.trim();
   if(!t&&S.needs.length)t='I need '+S.needs.join(' and ')+', '+S.urgency.replace('_',' ');
   if(!t)t='I need help';
@@ -1007,7 +1071,7 @@ async function doMatch(){
   goScreen('results');
   const needs=(S.intake.needs&&S.intake.needs.length)?S.intake.needs:S.needs;
   const rf=S.refined||{};
-  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
+  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,local_resource_ids:S.local_ids||null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
   if(!r.plan||!r.plan.length){document.getElementById('plan-list').innerHTML='<div class="spinner">No matches in current capacity — escalating to a caseworker.</div>';return;}
   S.tracking=r.tracking_number;S.plan=r.plan.map(p=>({...p,phase:0}));
   const emer=r.tier==='emergency';

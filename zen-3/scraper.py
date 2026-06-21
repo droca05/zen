@@ -105,13 +105,26 @@ out center;
         return "food"   # fallback
 
     try:
-        resp = requests.post(
+        resp = None
+        for endpoint in [
             "https://overpass-api.de/api/interpreter",
-            data={"data": query},
-            headers={"User-Agent": "ZenBenefitsNavigator/1.0 (hackathon research)"},
-            timeout=45,
-        )
-        resp.raise_for_status()
+            "https://overpass.kumi.systems/api/interpreter",
+        ]:
+            try:
+                resp = requests.post(
+                    endpoint,
+                    data={"data": query},
+                    headers={"User-Agent": "ZenBenefitsNavigator/1.0 (hackathon research)"},
+                    timeout=45,
+                )
+                resp.raise_for_status()
+                break
+            except Exception:
+                resp = None
+                continue
+        if resp is None:
+            print("  OSM request failed: all endpoints timed out")
+            return []
         elements = resp.json().get("elements", [])
     except Exception as e:
         print(f"  OSM request failed: {e}")
