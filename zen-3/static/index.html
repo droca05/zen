@@ -246,6 +246,75 @@ textarea.zen-input{resize:none;}
 
 h1.hero{font-family:'Fraunces',serif;font-weight:500;font-size:48px;letter-spacing:-1px;margin-bottom:10px;color:#0F3A3D;}
 h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.5vw,40px);line-height:1.08;letter-spacing:-.8px;margin-bottom:10px;color:#0F3A3D;}
+
+/* ═══════════ RESPONSIVE — MOBILE ≤ 640px ═══════════ */
+@media(max-width:640px){
+
+  /* TOP NAV → 2 rows: [brand · lang] / [worldbtns full-width] */
+  #topnav{flex-wrap:wrap;padding:10px 14px 8px;gap:4px;}
+  #topnav .brand .name{font-size:18px;}
+  #topnav .worldbtns{order:10;width:100%;justify-content:center;}
+  #topnav .worldbtns button{padding:6px 10px;font-size:10.5px;letter-spacing:.2px;}
+  .lang-btns{margin-left:auto;}
+  .lang-btns button{font-size:11px;padding:5px 8px;}
+
+  /* PERSON SCREENS: extra top padding for 2-row nav (~95px tall) */
+  #person-screens{
+    padding-top:110px;
+    padding-left:16px;
+    padding-right:16px;
+    padding-bottom:130px;
+  }
+
+  /* ORG + CW WORLDS */
+  #world-org.active,#world-cw.active{
+    padding:110px 14px 48px;
+    align-items:flex-start;
+  }
+  .dash-wrap{padding-top:0;padding-left:0;padding-right:0;}
+  .dash-grid{grid-template-columns:1fr;}
+
+  /* TYPOGRAPHY */
+  h1.hero{font-size:32px;letter-spacing:-.5px;}
+  h2.screen-h{font-size:26px;}
+
+  /* URGENCY BUTTONS */
+  .urg-btn{min-width:0;font-size:14px;padding:12px 8px;}
+
+  /* CHIPS */
+  .need-btn{font-size:14px;padding:10px 14px;}
+
+  /* BOTTOM NAV → full-width tab bar at bottom */
+  #bottomnav{
+    left:0;right:0;bottom:0;
+    transform:none;
+    border-radius:20px 20px 0 0;
+    border-bottom:none;
+    justify-content:space-around;
+    padding:8px 4px max(env(safe-area-inset-bottom,0px),8px);
+    gap:0;
+  }
+  #bottomnav button{flex:1;padding:8px 4px;}
+
+  /* CHAT FAB → above full-width bottom nav */
+  #chat-fab{bottom:88px;right:14px;}
+
+  /* CHAT PANEL → full width */
+  #chat-panel{
+    left:8px;right:8px;
+    bottom:80px;
+    width:auto;
+    height:min(500px,calc(100vh - 165px));
+  }
+
+  /* CW ROWS */
+  .cw-badge{width:42px;height:42px;border-radius:10px;}
+  .cw-badge .cb1{font-size:12px;} .cw-badge .cb2{font-size:10px;}
+
+  /* MAPS */
+  #pmap{height:240px;}
+  #ongmap{height:210px;}
+}
 </style>
 <style>
 /* ─ hide Google's injected banner and tooltip entirely ─ */
