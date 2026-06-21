@@ -276,14 +276,11 @@ function setLang(lang,btn){
   const sel=document.querySelector('.goog-te-combo');
   if(sel){sel.value=lang;sel.dispatchEvent(new Event('change'));}
 }
-/* force body top to 0 whenever Google Translate sets it */
-new MutationObserver(()=>{
-  if(document.body.style.top!==''&&document.body.style.top!=='0px')document.body.style.setProperty('top','0','important');
-}).observe(document.body,{attributes:true,attributeFilter:['style']});
-/* hide the banner iframe if it ever appears */
-new MutationObserver(()=>{
-  document.querySelectorAll('iframe.goog-te-banner-frame,.goog-te-banner-frame').forEach(el=>el.style.setProperty('display','none','important'));
-}).observe(document.documentElement,{childList:true,subtree:true});
+/* kill Google Translate banner reliably — interval wins over any reinjection */
+setInterval(()=>{
+  document.querySelectorAll('.goog-te-banner-frame,iframe.goog-te-banner-frame,.skiptranslate').forEach(el=>{if(el.tagName!=='DIV'||!el.id)el.style.setProperty('display','none','important');});
+  if(document.body&&document.body.style.top&&document.body.style.top!=='0px')document.body.style.setProperty('top','0','important');
+},50);
 </script>
 <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
 
