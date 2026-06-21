@@ -247,8 +247,26 @@ textarea.zen-input{resize:none;}
 h1.hero{font-family:'Fraunces',serif;font-weight:500;font-size:48px;letter-spacing:-1px;margin-bottom:10px;color:#0F3A3D;}
 h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.5vw,40px);line-height:1.08;letter-spacing:-.8px;margin-bottom:10px;color:#0F3A3D;}
 </style>
+<style>
+#google_translate_element{display:inline-flex;align-items:center;}
+.goog-te-gadget{font-size:0!important;color:transparent!important;}
+.goog-te-gadget select{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:#0F3A3D;background:#F4F1EA;border:1.5px solid rgba(20,52,47,.2);border-radius:9px;padding:6px 10px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230F3A3D' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:10px;padding-right:26px;}
+.goog-te-banner-frame,.skiptranslate>span{display:none!important;}
+body{top:0!important;}
+</style>
 </head>
 <body>
+<script>
+function googleTranslateElementInit(){
+  new google.translate.TranslateElement({
+    pageLanguage:'en',
+    includedLanguages:'en,es,fr',
+    layout:google.translate.TranslateElement.InlineLayout.SIMPLE,
+    autoDisplay:false
+  },'google_translate_element');
+}
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
 
 <!-- ════ TOP NAV ════ -->
 <nav id="topnav">
@@ -265,6 +283,7 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
     <button id="btn-org" onclick="setWorld('org')">Organization</button>
     <button id="btn-cw" onclick="setWorld('cw')">Caseworker</button>
   </div>
+  <div id="google_translate_element"></div>
 </nav>
 
 <!-- ════ PERSON WORLD ════ -->
