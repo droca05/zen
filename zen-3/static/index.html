@@ -818,31 +818,33 @@ function _geoDone(text){
 }
 
 async function _bootstrapArea(lat,lon){
-  const key=`zen_scraped_${lat.toFixed(2)}_${lon.toFixed(2)}`;
+  const key=`zen_area_${lat.toFixed(2)}_${lon.toFixed(2)}`;
   const raw=sessionStorage.getItem(key);
   if(raw){
     try{
       const cached=JSON.parse(raw);
-      if(cached&&cached.bbox_tuple){
-        S.bbox_tuple=cached.bbox_tuple;
-        _geoDone('Location found — resources loaded.');
+      if(cached&&cached.area_ids&&cached.area_ids.length){
+        S.local_ids=cached.area_ids;
+        S.bbox_tuple=cached.bbox_tuple||null;
+        _geoDone(`${cached.area_ids.length} local resources loaded.`);
         return;
       }
     }catch(e){}
-    sessionStorage.removeItem(key); // stale/invalid cache → re-scrape
+    sessionStorage.removeItem(key); // stale — re-scrape
   }
   _geoSpinner(true);
-  setGeoText('Loading resources for your area…');
+  setGeoText('Scanning your area for local resources…');
   try{
     const r=await post('/api/bootstrap_area',{lat,lon,radius_km:10});
-    if(r.bbox_tuple)S.bbox_tuple=r.bbox_tuple;
-    sessionStorage.setItem(key,JSON.stringify({bbox_tuple:r.bbox_tuple||null}));
-    if(r.status==='ok'&&r.new>0)
-      _geoDone(`${r.found} local resources found (${r.new} new).`);
-    else
-      _geoDone('Location found — showing help near you.');
+    if(r.area_ids&&r.area_ids.length){
+      S.local_ids=r.area_ids;
+      sessionStorage.setItem(key,JSON.stringify({area_ids:r.area_ids,bbox_tuple:r.bbox_tuple||null}));
+      _geoDone(`${r.found} local resources found${r.new?' ('+r.new+' new)':''}.`);
+    } else {
+      _geoDone('No local data — using region resources.');
+    }
   }catch(e){
-    _geoDone('Location found — showing help near you.');
+    _geoDone('Using region resources.');
   }
 }
 
@@ -982,7 +984,7 @@ async function doMatch(){
   goScreen('results');
   const needs=(S.intake.needs&&S.intake.needs.length)?S.intake.needs:S.needs;
   const rf=S.refined||{};
-  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,bbox_tuple:S.bbox_tuple||null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
+  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,bbox_tuple:S.bbox_tuple||null,local_resource_ids:S.local_ids||null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
   if(!r.plan||!r.plan.length){document.getElementById('plan-list').innerHTML='<div class="spinner">No matches in current capacity — escalating to a caseworker.</div>';return;}
   S.tracking=r.tracking_number;S.plan=r.plan.map(p=>({...p,phase:0}));
   const emer=r.tier==='emergency';

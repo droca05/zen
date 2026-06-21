@@ -55,23 +55,17 @@ def _bbox_for(lat: float, lon: float, radius_km: float = _BOOTSTRAP_RADIUS_KM):
     return lat - lat_d, lon - lon_d, lat + lat_d, lon + lon_d
 
 
-def _raw_in_bbox(r: dict, s: float, w: float, n: float, e: float) -> bool:
-    """True if a raw resource dict's lat/lon falls inside the bbox."""
-    lat, lon = r.get("lat"), r.get("lon")
-    return lat is not None and lon is not None and s <= lat <= n and w <= lon <= e
-
-
 def _coords_to_zone(lat: float, lon: float,
                     bbox: tuple | None = None) -> int:
-    """
-    Map lat/lon to zone 0-5 on a 3×2 grid of the service area.
-    If bbox is provided it uses that area; otherwise derives a
-    radius-10km bbox around the point itself (user is near center → zone 3).
-    """
+    """Map lat/lon to zone 0-5 on a 3×2 grid centred on the user's area."""
     s, w, n, e = bbox if bbox else _bbox_for(lat, lon)
     row = min(2, max(0, int((lat - s) / (n - s) * 3)))
     col = min(1, max(0, int((lon - w) / (e - w) * 2)))
     return row * 2 + col
+
+# Columns that exist in the Supabase resources table.
+_SB_COLS = {"resource_id","name","service_type","address","hours","phone","url",
+            "zip_zone","capacity","max_income","min_household_size","last_verified_days_ago"}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data", "resources.json")
@@ -192,7 +186,8 @@ class MatchReq(BaseModel):
     zip_zone: int = 1
     lat: Optional[float] = None
     lon: Optional[float] = None
-    bbox_tuple: Optional[list[float]] = None  # [s, w, n, e] from bootstrap
+    bbox_tuple: Optional[list[float]] = None       # [s,w,n,e] for zone calc
+    local_resource_ids: Optional[list[str]] = None # IDs from bootstrap — filter to these
     household_size: int = 3
     monthly_income: int = 900
     has_transport: bool = False
@@ -274,10 +269,12 @@ def api_match(req: MatchReq):
         has_transport=req.has_transport, zip_zone=zone,
     )
     raw_all = _raw_resources()
-    if bbox:
-        s, w, n, e = bbox
-        raw_local = [r for r in raw_all if _raw_in_bbox(r, s, w, n, e)]
-        raw = raw_local if raw_local else raw_all   # fallback if bbox empty
+    if req.local_resource_ids:
+        # bootstrap already identified the resources for this area — use exactly those
+        id_set = set(req.local_resource_ids)
+        raw = [r for r in raw_all if r["resource_id"] in id_set]
+        if not raw:
+            raw = raw_all   # shouldn't happen, but never leave user with nothing
     else:
         raw = raw_all
     resources = [Resource(
@@ -454,44 +451,62 @@ class BootstrapReq(BaseModel):
 @app.post("/api/bootstrap_area")
 async def api_bootstrap_area(req: BootstrapReq):
     """
-    Called once after geolocation. Scrapes OSM in a ~radius_km circle around the
-    user, deduplicates against what's already in Supabase, and upserts new records.
-    Returns immediately with a job_id; client polls /api/bootstrap_area/{job_id}.
+    Scrapes OSM for the user's area, uploads new resources to Supabase,
+    and returns the resource IDs for that area so /api/match can filter to them.
     """
-    import asyncio, math
-    from scraper import scrape_osm
+    from scraper import scrape_osm, _lat_lon_to_zone
 
     s, w, n, e = _bbox_for(req.lat, req.lon, req.radius_km)
-    bbox = f"{s:.4f},{w:.4f},{n:.4f},{e:.4f}"
+    bbox_str  = f"{s:.4f},{w:.4f},{n:.4f},{e:.4f}"
     bbox_tuple = (s, w, n, e)
 
     loop = asyncio.get_event_loop()
-    records = await loop.run_in_executor(None, scrape_osm, bbox)
+    records = await loop.run_in_executor(None, scrape_osm, bbox_str)
 
     if not records:
-        return {"status": "no_results", "new": 0, "bbox": bbox, "bbox_tuple": list(bbox_tuple)}
+        return {"status": "no_results", "new": 0, "area_ids": []}
 
-    # recalculate zones relative to the user's local bbox (not Houston grid)
-    from scraper import _lat_lon_to_zone
+    # recalculate zones relative to user's local bbox
     for rec in records:
         if rec.get("lat") and rec.get("lon"):
             rec["zip_zone"] = _lat_lon_to_zone(rec["lat"], rec["lon"], bbox_tuple)
 
     sb = get_sb()
-    if sb:
-        existing = {r["name"].lower() for r in sb.table("resources").select("name").execute().data}
-        new_recs = [r for r in records if r["name"].lower() not in existing]
-        if new_recs:
-            all_ids = sb.table("resources").select("resource_id").execute().data
-            next_idx = len(all_ids)
-            for i, rec in enumerate(new_recs):
-                rec["resource_id"] = f"R{next_idx + i:04d}"
-            sb.table("resources").insert(new_recs).execute()
-        return {"status": "ok", "found": len(records), "new": len(new_recs),
-                "bbox": bbox, "bbox_tuple": list(bbox_tuple)}
+    if not sb:
+        return {"status": "no_db", "found": len(records), "new": 0, "area_ids": []}
 
-    return {"status": "no_db", "found": len(records), "new": 0,
-            "bbox": bbox, "bbox_tuple": list(bbox_tuple)}
+    # existing names → already have IDs in Supabase
+    all_rows  = sb.table("resources").select("resource_id,name").execute().data
+    name_to_id = {r["name"].lower(): r["resource_id"] for r in all_rows}
+
+    area_ids: list[str] = []
+    new_recs: list[dict] = []
+    next_idx = len(all_rows)
+
+    for i, rec in enumerate(records):
+        name_key = rec["name"].lower()
+        if name_key in name_to_id:
+            area_ids.append(name_to_id[name_key])   # already exists
+        else:
+            rid = f"R{next_idx:04d}"
+            next_idx += 1
+            rec["resource_id"] = rid
+            area_ids.append(rid)
+            # strip fields Supabase doesn't know about before inserting
+            new_recs.append({k: v for k, v in rec.items() if k in _SB_COLS})
+
+    if new_recs:
+        try:
+            sb.table("resources").insert(new_recs).execute()
+        except Exception as e:
+            print(f"[bootstrap] insert error: {e}")
+
+    return {
+        "status": "ok",
+        "found":  len(records),
+        "new":    len(new_recs),
+        "area_ids": area_ids,
+    }
 
 
 # ── ONG side: register / update capacity (the supply side of the marketplace) ──
