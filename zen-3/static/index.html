@@ -835,7 +835,7 @@ const S = {
 let pmap=null, omap=null, recording=false, recog=null;
 
 function saveLocal(){try{localStorage.setItem('zen_v2',JSON.stringify({plan:S.plan,tracking:S.tracking,coords:S.coords}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem('zen_v2')||'{}');if(d.plan){S.plan=d.plan;S.tracking=d.tracking;if(d.coords&&_inHoustonBbox(d.coords[0],d.coords[1]))S.coords=d.coords;}}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem('zen_v2')||'{}');if(d.plan){S.plan=d.plan;S.tracking=d.tracking;if(d.coords&&_inUSABbox(d.coords[0],d.coords[1]))S.coords=d.coords;}}catch(e){}}
 async function post(p,b){const r=await fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return r.json();}
 async function get(p){const r=await fetch(API+p);return r.json();}
 
@@ -875,27 +875,28 @@ function showTab(t,skipScroll){
   if(!skipScroll)window.scrollTo({top:0,behavior:'smooth'});
 }
 
-const _HOUSTON_BBOX={s:29.5,w:-95.8,n:30.1,e:-95.1};
 const _HOUSTON_CENTER=[29.7604,-95.3698];
-function _inHoustonBbox(lat,lon){return lat>=_HOUSTON_BBOX.s&&lat<=_HOUSTON_BBOX.n&&lon>=_HOUSTON_BBOX.w&&lon<=_HOUSTON_BBOX.e;}
+function _inUSABbox(lat,lon){
+  return lat>=24.5&&lat<=49.5&&lon>=-125.0&&lon<=-66.9;
+}
 function askGeo(){
   if(!navigator.geolocation){
     S.coords=_HOUSTON_CENTER;
-    setGeoText('Houston, TX — simulated location for demo');
+    setGeoText('Houston, TX — demo location');
     return;
   }
   navigator.geolocation.getCurrentPosition(
     p=>{
       const lat=p.coords.latitude,lon=p.coords.longitude;
-      if(_inHoustonBbox(lat,lon)){
-        S.coords=[lat,lon];saveLocal();
-        setGeoText('Location found — showing help near you.');
-      } else {
+      if(!_inUSABbox(lat,lon)){
         S.coords=_HOUSTON_CENTER;
-        setGeoText('Houston, TX — simulated location for demo');
+        setGeoText('Houston, TX — demo location (Zen serves the US)');
+        return;
       }
+      S.coords=[lat,lon];saveLocal();
+      setGeoText('Location found — showing help near you.');
     },
-    ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — simulated location for demo');}
+    ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — demo location');}
   );
 }
 function setGeoText(t){const el=document.getElementById('geo-text');if(el)el.textContent=t;}
@@ -1058,7 +1059,7 @@ function renderSaveBox(){
   document.getElementById('save-box').innerHTML=`
     <div class="card-white" style="margin-bottom:18px;">
       <button class="zen-btn primary" onclick="saveCase()">Save my case</button>
-      <p style="font-size:12.5px;color:rgba(20,52,47,.6);line-height:1.5;margin-top:10px;text-align:center;">All cases are saved privately and linked to a unique case number. Add your email to receive follow-up reminders.</p>
+      <p style="font-size:12.5px;color:rgba(20,52,47,.6);line-height:1.5;margin-top:10px;text-align:center;">All cases are saved privately and linked to a unique case number.</p>
       <div id="save-out"></div>
     </div>`;
 }
@@ -1333,6 +1334,7 @@ async function loadOrg(){
 async function runMilp(){
   document.getElementById('milp-sim').innerHTML='<div class="spinner">Running the solver…</div>';
   const d=await get('/api/batch/run');
+  _milpData=d;
   const cls=g=>g==='Inner Loop'?'#1B7A7E':'#E8A04C';
   function grid(w){return d.people.map(p=>{const s=p[w]!=null;return `<span class="milp-sq" style="background:${cls(p.group)};opacity:${s?'1':'.28'};" title="${p.group}${s?' → served':' → unserved'}"></span>`;}).join('');}
   const nI=Math.round((d.naive.by_group['Inner Loop']||0)*100),nO=Math.round((d.naive.by_group['Outer Neighborhoods']||0)*100);
@@ -1356,12 +1358,44 @@ async function runMilp(){
       <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#E8A04C;display:inline-block;"></span>Outer Neighborhoods</span>
       <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:13px;height:13px;border-radius:3px;background:#E8A04C;opacity:.28;display:inline-block;"></span>faded = unserved</span>
     </div>
-    <p style="font-size:12.5px;line-height:1.55;color:rgba(20,52,47,.65);">${d.explain}</p>`;
+    <p style="font-size:12.5px;line-height:1.55;color:rgba(20,52,47,.65);">${d.explain}</p>
+    <button onclick="downloadAssignments()" style="margin-top:14px;border:1.5px solid rgba(20,52,47,.3);background:#ffffff;color:#0F3A3D;cursor:pointer;font-family:'Plus Jakarta Sans';font-weight:700;font-size:13px;padding:10px 18px;border-radius:10px;">⬇️ Download assignment report (.csv)</button>`;
 }
 
+function downloadAssignments(){
+  if(!_milpData) return;
+  const rn = _milpData.resource_names || {};
+  const rows = [
+    ['Case ID','Group','Urgency','Has Transport','Zone',
+     'Naive Assignment','Fair Assignment','Changed']
+  ];
+  for(const p of _milpData.people){
+    const naiveName = p.naive ? (rn[p.naive] || p.naive) : 'Unassigned';
+    const fairName  = p.fair  ? (rn[p.fair]  || p.fair)  : 'Unassigned';
+    const changed   = naiveName !== fairName ? 'YES' : 'no';
+    rows.push([
+      p.id, p.group, p.urgency,
+      p.transport ? 'Yes' : 'No',
+      p.zone,
+      naiveName, fairName, changed
+    ]);
+  }
+  rows.push([]);
+  rows.push(['','','','','',
+    `Naive served: ${_milpData.naive.served}/${_milpData.naive.total}  gap ${Math.round(_milpData.naive.parity_gap*100)}%`,
+    `Fair served: ${_milpData.fair.served}/${_milpData.fair.total}  gap ${Math.round(_milpData.fair.parity_gap*100)}%`,
+    ''
+  ]);
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a   = document.createElement('a');
+  a.href    = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download= 'zen_fair_assignment_report.csv';
+  a.click();
+}
 const CW_COLOR=g=>g>=100?'#D9735A':g>=40?'#E8A04C':'#1B7A7E';
 const CW_TAGBG=r=>r==='safety'?'#F7D9D0':r==='broken_loop'?'#F6E2C4':'#D4E9E8';
 const CW_TAGFG=r=>r==='safety'?'#8A3020':r==='broken_loop'?'#7A5010':'#155F62';
+let _milpData=null;
 let pendingResolve=null;
 async function loadCw(){
   const d=await get('/api/caseworker/dashboard');
