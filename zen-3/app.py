@@ -55,6 +55,12 @@ def _bbox_for(lat: float, lon: float, radius_km: float = _BOOTSTRAP_RADIUS_KM):
     return lat - lat_d, lon - lon_d, lat + lat_d, lon + lon_d
 
 
+def _raw_in_bbox(r: dict, s: float, w: float, n: float, e: float) -> bool:
+    """True if a raw resource dict's lat/lon falls inside the bbox."""
+    lat, lon = r.get("lat"), r.get("lon")
+    return lat is not None and lon is not None and s <= lat <= n and w <= lon <= e
+
+
 def _coords_to_zone(lat: float, lon: float,
                     bbox: tuple | None = None) -> int:
     """
@@ -267,8 +273,21 @@ def api_match(req: MatchReq):
         race_group=req.race_group, language=req.language,
         has_transport=req.has_transport, zip_zone=zone,
     )
-    resources = load_resources()
-    meta = resource_meta()
+    raw_all = _raw_resources()
+    if bbox:
+        s, w, n, e = bbox
+        raw_local = [r for r in raw_all if _raw_in_bbox(r, s, w, n, e)]
+        raw = raw_local if raw_local else raw_all   # fallback if bbox empty
+    else:
+        raw = raw_all
+    resources = [Resource(
+        resource_id=r["resource_id"], name=r["name"],
+        service_type=r["service_type"], zip_zone=r.get("zip_zone", 0),
+        capacity=r.get("capacity", 0), max_income=r.get("max_income", 0),
+        min_household_size=r.get("min_household_size", 0),
+        hours=r.get("hours", ""), last_verified_days_ago=r.get("last_verified_days_ago", 0),
+    ) for r in raw]
+    meta = {r["resource_id"]: r for r in raw}
     res = solve([user], resources, fairness=True, parity_delta=0.10)
 
     plan = []
