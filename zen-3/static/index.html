@@ -799,11 +799,16 @@ const _HOUSTON_CENTER=[29.7604,-95.3698];
 function _inHoustonBbox(lat,lon){return lat>=_HOUSTON_BBOX.s&&lat<=_HOUSTON_BBOX.n&&lon>=_HOUSTON_BBOX.w&&lon<=_HOUSTON_BBOX.e;}
 async function _bootstrapArea(lat,lon){
   const key=`zen_scraped_${lat.toFixed(2)}_${lon.toFixed(2)}`;
-  if(sessionStorage.getItem(key))return; // already done this session
+  if(sessionStorage.getItem(key)){
+    const cached=JSON.parse(sessionStorage.getItem(key));
+    if(cached.bbox_tuple)S.bbox_tuple=cached.bbox_tuple;
+    return;
+  }
   setGeoText('Finding local resources near you…');
   try{
     const r=await post('/api/bootstrap_area',{lat,lon,radius_km:10});
-    sessionStorage.setItem(key,'1');
+    if(r.bbox_tuple)S.bbox_tuple=r.bbox_tuple;
+    sessionStorage.setItem(key,JSON.stringify({bbox_tuple:r.bbox_tuple||null}));
     if(r.status==='ok'&&r.new>0)setGeoText(`Location found — ${r.found} local resources loaded (${r.new} new).`);
     else setGeoText('Location found — showing help near you.');
   }catch(e){setGeoText('Location found — showing help near you.');}
@@ -816,14 +821,9 @@ function askGeo(){
   }
   navigator.geolocation.getCurrentPosition(
     async p=>{
-      const lat=p.coords.latitude,lon=p.coords.longitude;
-      if(_inHoustonBbox(lat,lon)){
-        S.coords=[lat,lon];saveLocal();
-        await _bootstrapArea(lat,lon);
-      } else {
-        S.coords=_HOUSTON_CENTER;
-        setGeoText('Houston, TX — simulated location for demo');
-      }
+      S.coords=[p.coords.latitude,p.coords.longitude];
+      saveLocal();
+      await _bootstrapArea(p.coords.latitude,p.coords.longitude);
     },
     ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — simulated location for demo');}
   );
@@ -936,7 +936,7 @@ async function doMatch(){
   goScreen('results');
   const needs=(S.intake.needs&&S.intake.needs.length)?S.intake.needs:S.needs;
   const rf=S.refined||{};
-  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
+  const r=await post('/api/match',{needs:needs.length?needs:['food'],urgency:S.intake.urgency,zip_zone:1,lat:S.coords?S.coords[0]:null,lon:S.coords?S.coords[1]:null,bbox_tuple:S.bbox_tuple||null,has_transport:false,language:S.intake.language,household_size:rf.household_size||3,monthly_income:rf.monthly_income||900,has_children:!!rf.has_children,priority_housing:!!rf.priority_housing});
   if(!r.plan||!r.plan.length){document.getElementById('plan-list').innerHTML='<div class="spinner">No matches in current capacity — escalating to a caseworker.</div>';return;}
   S.tracking=r.tracking_number;S.plan=r.plan.map(p=>({...p,phase:0}));
   const emer=r.tier==='emergency';

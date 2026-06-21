@@ -19,7 +19,7 @@ Routes
 """
 
 from __future__ import annotations
-import json, os
+import json, math, os
 from datetime import datetime
 from typing import Optional
 
@@ -42,13 +42,27 @@ from db import get_sb
 # Needs treated as time-critical emergencies (real-time heuristic path).
 EMERGENCY_NEEDS = {"food", "housing"}
 
-# Service-area grid for Houston, TX metro (matches OSM scraper --bbox below)
+# Default service-area bbox (Houston TX) — used only when no GPS is available.
 _AREA_BBOX = (29.5, -95.8, 30.1, -95.1)   # south, west, north, east
 
+_BOOTSTRAP_RADIUS_KM = 10.0  # radius used by /api/bootstrap_area
 
-def _coords_to_zone(lat: float, lon: float) -> int:
-    """Map user lat/lon to zone 0-5 on the 3×2 service-area grid."""
-    s, w, n, e = _AREA_BBOX
+
+def _bbox_for(lat: float, lon: float, radius_km: float = _BOOTSTRAP_RADIUS_KM):
+    """Return (s, w, n, e) bbox of radius_km around lat/lon."""
+    lat_d = radius_km / 111.0
+    lon_d = radius_km / (111.0 * math.cos(math.radians(lat)))
+    return lat - lat_d, lon - lon_d, lat + lat_d, lon + lon_d
+
+
+def _coords_to_zone(lat: float, lon: float,
+                    bbox: tuple | None = None) -> int:
+    """
+    Map lat/lon to zone 0-5 on a 3×2 grid of the service area.
+    If bbox is provided it uses that area; otherwise derives a
+    radius-10km bbox around the point itself (user is near center → zone 3).
+    """
+    s, w, n, e = bbox if bbox else _bbox_for(lat, lon)
     row = min(2, max(0, int((lat - s) / (n - s) * 3)))
     col = min(1, max(0, int((lon - w) / (e - w) * 2)))
     return row * 2 + col
@@ -172,6 +186,7 @@ class MatchReq(BaseModel):
     zip_zone: int = 1
     lat: Optional[float] = None
     lon: Optional[float] = None
+    bbox_tuple: Optional[list[float]] = None  # [s, w, n, e] from bootstrap
     household_size: int = 3
     monthly_income: int = 900
     has_transport: bool = False
@@ -244,7 +259,8 @@ def api_followups(req: FollowupReq):
 
 @app.post("/api/match")
 def api_match(req: MatchReq):
-    zone = _coords_to_zone(req.lat, req.lon) if req.lat and req.lon else req.zip_zone
+    bbox = tuple(req.bbox_tuple) if req.bbox_tuple else None
+    zone = _coords_to_zone(req.lat, req.lon, bbox) if req.lat and req.lon else req.zip_zone
     user = UserProfile(
         user_id="LIVE", needs=req.needs, urgency=req.urgency,
         household_size=req.household_size, monthly_income=req.monthly_income,
@@ -426,30 +442,37 @@ async def api_bootstrap_area(req: BootstrapReq):
     import asyncio, math
     from scraper import scrape_osm
 
-    lat_d = req.radius_km / 111.0
-    lon_d = req.radius_km / (111.0 * math.cos(math.radians(req.lat)))
-    bbox = f"{req.lat-lat_d:.4f},{req.lon-lon_d:.4f},{req.lat+lat_d:.4f},{req.lon+lon_d:.4f}"
+    s, w, n, e = _bbox_for(req.lat, req.lon, req.radius_km)
+    bbox = f"{s:.4f},{w:.4f},{n:.4f},{e:.4f}"
+    bbox_tuple = (s, w, n, e)
 
     loop = asyncio.get_event_loop()
     records = await loop.run_in_executor(None, scrape_osm, bbox)
 
     if not records:
-        return {"status": "no_results", "new": 0, "bbox": bbox}
+        return {"status": "no_results", "new": 0, "bbox": bbox, "bbox_tuple": list(bbox_tuple)}
+
+    # recalculate zones relative to the user's local bbox (not Houston grid)
+    from scraper import _lat_lon_to_zone
+    for rec in records:
+        if rec.get("lat") and rec.get("lon"):
+            rec["zip_zone"] = _lat_lon_to_zone(rec["lat"], rec["lon"], bbox_tuple)
 
     sb = get_sb()
     if sb:
         existing = {r["name"].lower() for r in sb.table("resources").select("name").execute().data}
         new_recs = [r for r in records if r["name"].lower() not in existing]
         if new_recs:
-            # assign IDs continuing from current max
             all_ids = sb.table("resources").select("resource_id").execute().data
             next_idx = len(all_ids)
             for i, rec in enumerate(new_recs):
                 rec["resource_id"] = f"R{next_idx + i:04d}"
             sb.table("resources").insert(new_recs).execute()
-        return {"status": "ok", "found": len(records), "new": len(new_recs), "bbox": bbox}
+        return {"status": "ok", "found": len(records), "new": len(new_recs),
+                "bbox": bbox, "bbox_tuple": list(bbox_tuple)}
 
-    return {"status": "no_db", "found": len(records), "new": 0, "bbox": bbox}
+    return {"status": "no_db", "found": len(records), "new": 0,
+            "bbox": bbox, "bbox_tuple": list(bbox_tuple)}
 
 
 # ── ONG side: register / update capacity (the supply side of the marketplace) ──
