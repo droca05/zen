@@ -797,6 +797,17 @@ function showTab(t,skipScroll){
 const _HOUSTON_BBOX={s:29.5,w:-95.8,n:30.1,e:-95.1};
 const _HOUSTON_CENTER=[29.7604,-95.3698];
 function _inHoustonBbox(lat,lon){return lat>=_HOUSTON_BBOX.s&&lat<=_HOUSTON_BBOX.n&&lon>=_HOUSTON_BBOX.w&&lon<=_HOUSTON_BBOX.e;}
+async function _bootstrapArea(lat,lon){
+  const key=`zen_scraped_${lat.toFixed(2)}_${lon.toFixed(2)}`;
+  if(sessionStorage.getItem(key))return; // already done this session
+  setGeoText('Finding local resources near you…');
+  try{
+    const r=await post('/api/bootstrap_area',{lat,lon,radius_km:10});
+    sessionStorage.setItem(key,'1');
+    if(r.status==='ok'&&r.new>0)setGeoText(`Location found — ${r.found} local resources loaded (${r.new} new).`);
+    else setGeoText('Location found — showing help near you.');
+  }catch(e){setGeoText('Location found — showing help near you.');}
+}
 function askGeo(){
   if(!navigator.geolocation){
     S.coords=_HOUSTON_CENTER;
@@ -804,11 +815,11 @@ function askGeo(){
     return;
   }
   navigator.geolocation.getCurrentPosition(
-    p=>{
+    async p=>{
       const lat=p.coords.latitude,lon=p.coords.longitude;
       if(_inHoustonBbox(lat,lon)){
         S.coords=[lat,lon];saveLocal();
-        setGeoText('Location found — showing help near you.');
+        await _bootstrapArea(lat,lon);
       } else {
         S.coords=_HOUSTON_CENTER;
         setGeoText('Houston, TX — simulated location for demo');

@@ -410,6 +410,48 @@ def api_cw_resolve(req: ResolveReq):
     return cw.resolve(req.case_id, req.referred_to)
 
 
+# ── real-time area bootstrap: scrape OSM around the user's GPS position ────────
+class BootstrapReq(BaseModel):
+    lat: float
+    lon: float
+    radius_km: float = 10.0
+
+@app.post("/api/bootstrap_area")
+async def api_bootstrap_area(req: BootstrapReq):
+    """
+    Called once after geolocation. Scrapes OSM in a ~radius_km circle around the
+    user, deduplicates against what's already in Supabase, and upserts new records.
+    Returns immediately with a job_id; client polls /api/bootstrap_area/{job_id}.
+    """
+    import asyncio, math
+    from scraper import scrape_osm
+
+    lat_d = req.radius_km / 111.0
+    lon_d = req.radius_km / (111.0 * math.cos(math.radians(req.lat)))
+    bbox = f"{req.lat-lat_d:.4f},{req.lon-lon_d:.4f},{req.lat+lat_d:.4f},{req.lon+lon_d:.4f}"
+
+    loop = asyncio.get_event_loop()
+    records = await loop.run_in_executor(None, scrape_osm, bbox)
+
+    if not records:
+        return {"status": "no_results", "new": 0, "bbox": bbox}
+
+    sb = get_sb()
+    if sb:
+        existing = {r["name"].lower() for r in sb.table("resources").select("name").execute().data}
+        new_recs = [r for r in records if r["name"].lower() not in existing]
+        if new_recs:
+            # assign IDs continuing from current max
+            all_ids = sb.table("resources").select("resource_id").execute().data
+            next_idx = len(all_ids)
+            for i, rec in enumerate(new_recs):
+                rec["resource_id"] = f"R{next_idx + i:04d}"
+            sb.table("resources").insert(new_recs).execute()
+        return {"status": "ok", "found": len(records), "new": len(new_recs), "bbox": bbox}
+
+    return {"status": "no_db", "found": len(records), "new": 0, "bbox": bbox}
+
+
 # ── ONG side: register / update capacity (the supply side of the marketplace) ──
 @app.get("/api/ong/resources")
 def api_ong_list():
