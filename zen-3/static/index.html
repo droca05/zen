@@ -15,6 +15,7 @@
 @keyframes zenRipple{0%{transform:scale(.85);opacity:.5}100%{transform:scale(1.9);opacity:0}}
 @keyframes zenBreathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.06);opacity:.85}}
 @keyframes zenPulse{0%{box-shadow:0 0 0 0 rgba(217,115,90,.4)}70%{box-shadow:0 0 0 14px rgba(217,115,90,0)}100%{box-shadow:0 0 0 0 rgba(217,115,90,0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scrollbar-gutter:stable;overflow-y:scroll;}
@@ -344,6 +345,8 @@ setInterval(()=>{
       <div style="display:flex;align-items:center;gap:11px;background:#ffffff;border:1px solid rgba(20,52,47,.2);border-radius:14px;padding:13px 16px;font-size:14px;color:rgba(20,52,47,.92);margin-bottom:28px;" id="geo-row">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" style="flex:none;"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z" stroke="#0F3A3D" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="#0F3A3D" stroke-width="1.8"/></svg>
         <span id="geo-text">Requesting location…</span>
+        <svg id="geo-spinner" viewBox="0 0 24 24" width="16" height="16" style="flex:none;display:none;animation:spin 1s linear infinite;margin-left:auto;opacity:.6;"><circle cx="12" cy="12" r="9" fill="none" stroke="#0F3A3D" stroke-width="2.5" stroke-dasharray="28 56" stroke-linecap="round"/></svg>
+        <svg id="geo-check" viewBox="0 0 24 24" width="16" height="16" fill="none" style="flex:none;display:none;margin-left:auto;"><path d="M5 12l5 5L19 7" stroke="#1B7A7E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
 
       <span class="zen-label">What do you need most?</span>
@@ -797,26 +800,58 @@ function showTab(t,skipScroll){
 const _HOUSTON_BBOX={s:29.5,w:-95.8,n:30.1,e:-95.1};
 const _HOUSTON_CENTER=[29.7604,-95.3698];
 function _inHoustonBbox(lat,lon){return lat>=_HOUSTON_BBOX.s&&lat<=_HOUSTON_BBOX.n&&lon>=_HOUSTON_BBOX.w&&lon<=_HOUSTON_BBOX.e;}
+
+function _geoSpinner(on){
+  const sp=document.getElementById('geo-spinner'),ck=document.getElementById('geo-check');
+  if(sp)sp.style.display=on?'block':'none';
+  if(ck)ck.style.display=on?'none':'none';
+}
+function _geoDone(text){
+  const sp=document.getElementById('geo-spinner'),ck=document.getElementById('geo-check');
+  if(sp)sp.style.display='none';
+  if(ck)ck.style.display='block';
+  setGeoText(text);
+  S.bootstrapReady=true;
+  // re-enable analyze button if it was waiting
+  const btn=document.getElementById('analyze-btn');
+  if(btn){btn.disabled=false;btn.textContent='Analyze my situation';}
+}
+
 async function _bootstrapArea(lat,lon){
   const key=`zen_scraped_${lat.toFixed(2)}_${lon.toFixed(2)}`;
-  if(sessionStorage.getItem(key)){
-    const cached=JSON.parse(sessionStorage.getItem(key));
-    if(cached.bbox_tuple)S.bbox_tuple=cached.bbox_tuple;
-    return;
+  const raw=sessionStorage.getItem(key);
+  if(raw){
+    try{
+      const cached=JSON.parse(raw);
+      if(cached&&cached.bbox_tuple){
+        S.bbox_tuple=cached.bbox_tuple;
+        _geoDone('Location found — resources loaded.');
+        return;
+      }
+    }catch(e){}
+    sessionStorage.removeItem(key); // stale/invalid cache → re-scrape
   }
-  setGeoText('Finding local resources near you…');
+  _geoSpinner(true);
+  setGeoText('Loading resources for your area…');
   try{
     const r=await post('/api/bootstrap_area',{lat,lon,radius_km:10});
     if(r.bbox_tuple)S.bbox_tuple=r.bbox_tuple;
     sessionStorage.setItem(key,JSON.stringify({bbox_tuple:r.bbox_tuple||null}));
-    if(r.status==='ok'&&r.new>0)setGeoText(`Location found — ${r.found} local resources loaded (${r.new} new).`);
-    else setGeoText('Location found — showing help near you.');
-  }catch(e){setGeoText('Location found — showing help near you.');}
+    if(r.status==='ok'&&r.new>0)
+      _geoDone(`${r.found} local resources found (${r.new} new).`);
+    else
+      _geoDone('Location found — showing help near you.');
+  }catch(e){
+    _geoDone('Location found — showing help near you.');
+  }
 }
+
 function askGeo(){
+  S.bootstrapReady=false;
   if(!navigator.geolocation){
     S.coords=_HOUSTON_CENTER;
     setGeoText('Houston, TX — simulated location for demo');
+    S.bootstrapReady=true;
     return;
   }
   navigator.geolocation.getCurrentPosition(
@@ -825,7 +860,11 @@ function askGeo(){
       saveLocal();
       await _bootstrapArea(p.coords.latitude,p.coords.longitude);
     },
-    ()=>{S.coords=_HOUSTON_CENTER;setGeoText('Houston, TX — simulated location for demo');}
+    ()=>{
+      S.coords=_HOUSTON_CENTER;
+      setGeoText('Houston, TX — simulated location for demo');
+      S.bootstrapReady=true;
+    }
   );
 }
 function setGeoText(t){const el=document.getElementById('geo-text');if(el)el.textContent=t;}
@@ -871,6 +910,13 @@ function toggleMic(){
 }
 
 async function doIntake(){
+  if(!S.bootstrapReady){
+    // bootstrap still running — show spinner state on the button and wait
+    const btn=document.getElementById('btn-sit-cont');
+    if(btn){btn.disabled=true;btn.textContent='Loading resources…';}
+    await new Promise(res=>{const iv=setInterval(()=>{if(S.bootstrapReady){clearInterval(iv);res();}},200);});
+    if(btn){btn.disabled=false;btn.textContent='Continue';}
+  }
   let t=document.getElementById('transcript').value.trim();
   if(!t&&S.needs.length)t='I need '+S.needs.join(' and ')+', '+S.urgency.replace('_',' ');
   if(!t)t='I need help';
