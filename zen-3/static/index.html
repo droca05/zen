@@ -249,9 +249,9 @@ h2.screen-h{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.
 </style>
 <style>
 /* ─ hide Google's injected banner and tooltip entirely ─ */
-.goog-te-banner-frame,#goog-gt-tt,.goog-te-balloon-frame,.goog-tooltip,.goog-tooltip-card{display:none!important;}
+.goog-te-banner-frame,iframe.goog-te-banner-frame,#goog-gt-tt,.goog-te-balloon-frame,.goog-tooltip,.goog-tooltip-card{display:none!important;}
 .goog-te-gadget{display:none!important;}
-body{top:0!important;}
+body{top:0!important;margin-top:0!important;}
 /* ─ lang buttons ─ */
 .lang-btns{display:inline-flex;gap:3px;background:rgba(20,52,47,.08);border-radius:10px;padding:3px;}
 .lang-btns button{border:none;background:transparent;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;color:rgba(20,52,47,.55);cursor:pointer;padding:5px 9px;border-radius:7px;transition:background .15s,color .15s;letter-spacing:.3px;}
@@ -276,13 +276,14 @@ function setLang(lang,btn){
   const sel=document.querySelector('.goog-te-combo');
   if(sel){sel.value=lang;sel.dispatchEvent(new Event('change'));}
 }
-/* keep banner hidden even if Google re-injects it */
-const _gtObs=new MutationObserver(()=>{
-  const b=document.querySelector('.goog-te-banner-frame');
-  if(b){b.style.cssText='display:none!important';}
-  if(document.body.style.top&&document.body.style.top!=='0px')document.body.style.top='0';
-});
-document.addEventListener('DOMContentLoaded',()=>_gtObs.observe(document.body,{childList:true,subtree:false}));
+/* force body top to 0 whenever Google Translate sets it */
+new MutationObserver(()=>{
+  if(document.body.style.top!==''&&document.body.style.top!=='0px')document.body.style.setProperty('top','0','important');
+}).observe(document.body,{attributes:true,attributeFilter:['style']});
+/* hide the banner iframe if it ever appears */
+new MutationObserver(()=>{
+  document.querySelectorAll('iframe.goog-te-banner-frame,.goog-te-banner-frame').forEach(el=>el.style.setProperty('display','none','important'));
+}).observe(document.documentElement,{childList:true,subtree:true});
 </script>
 <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
 
